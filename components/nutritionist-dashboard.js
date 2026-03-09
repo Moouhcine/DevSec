@@ -1,242 +1,315 @@
-import { getPendingRecommendations, getRecommendations, saveRecommendations, getProfile, getUsers } from '../utils/storage.js';
+import { getRecommendations, saveRecommendations, getProfile, getUsers } from '../utils/storage.js';
 
 export function renderNutritionistDashboard(app, user, onNavigate) {
-  let filterStatus = 'all';
-  let selectedRec = null;
+  let filterStatus = 'pending';
+  let filterObjective = 'all';
+  let selectedRecId = null;
+  let toastMessage = '';
+  let actionError = '';
+  const commentDrafts = {};
+  let toastTimer = null;
+
+  function getStatusLabel(status) {
+    if (status === 'pending') return 'En attente';
+    if (status === 'approved') return 'Validee';
+    return 'Rejetee';
+  }
+
+  function getSortedRecommendations() {
+    return getRecommendations()
+      .slice()
+      .sort((a, b) => new Date(b.createdAt || 0).getTime() - new Date(a.createdAt || 0).getTime());
+  }
+
+  function getRecContext(rec, users) {
+    const profile = getProfile(rec.userId);
+    const consumer = users.find(u => u.id === rec.userId);
+    const consumerId = consumer?.username || profile?.nom || 'inconnu';
+    const objective = profile?.objectifs || 'Objectif non defini';
+    const age = profile?.age ? `${profile.age} ans` : 'Age non renseigne';
+    const sex = profile?.sexe || 'Non renseigne';
+    const poids = profile?.poids ? `${profile.poids} kg` : '-';
+    const taille = profile?.taille ? `${profile.taille} m` : '-';
+    const imc = profile?.poids && profile?.taille ? (profile.poids / (profile.taille * profile.taille)).toFixed(1) : '-';
+
+    return { consumerId, objective, age, sex, poids, taille, imc };
+  }
+
+  function getNextPendingId(recs, fromId) {
+    if (!recs.some(r => r.status === 'pending')) return null;
+    const startIndex = recs.findIndex(r => r.id === fromId);
+
+    for (let i = startIndex + 1; i < recs.length; i += 1) {
+      if (recs[i].status === 'pending') return recs[i].id;
+    }
+
+    for (let i = 0; i <= startIndex; i += 1) {
+      if (recs[i]?.status === 'pending') return recs[i].id;
+    }
+
+    return null;
+  }
+
+  function applyFilters(recs, users) {
+    return recs.filter((rec) => {
+      const ctx = getRecContext(rec, users);
+      const statusOk = filterStatus === 'all' || rec.status === filterStatus;
+      const objectiveOk = filterObjective === 'all' || ctx.objective === filterObjective;
+      return statusOk && objectiveOk;
+    });
+  }
+
+  function showToast(message) {
+    toastMessage = message;
+    if (toastTimer) clearTimeout(toastTimer);
+    toastTimer = setTimeout(() => {
+      toastMessage = '';
+      render();
+    }, 2200);
+  }
+
+  function handleStatusUpdate(status) {
+    const allRecs = getSortedRecommendations();
+    const rec = allRecs.find(r => r.id === selectedRecId);
+    if (!rec) return;
+
+    const comment = (commentDrafts[selectedRecId] || '').trim();
+    if (status === 'rejected' && !comment) {
+      actionError = 'Un commentaire est requis pour rejeter.';
+      render();
+      return;
+    }
+
+    actionError = '';
+    updateRecStatus(selectedRecId, status, comment, user.id);
+
+    const users = getUsers().filter(u => u.role === 'consumer');
+    const consumerName = getRecContext(rec, users).consumerId;
+    const updatedRecs = getSortedRecommendations();
+    selectedRecId = getNextPendingId(updatedRecs, selectedRecId) || updatedRecs[0]?.id || null;
+
+    showToast(`Recommandation ${status === 'approved' ? 'validee' : 'rejetee'} pour ${consumerName}.`);
+    render();
+  }
+
+  function renderQueueRow(rec, ctx) {
+    const selectedClass = selectedRecId === rec.id ? 'selected' : '';
+    const doneClass = rec.status === 'approved' ? 'is-approved' : rec.status === 'rejected' ? 'is-rejected' : '';
+
+    return `
+      <article class="review-row ${selectedClass} ${doneClass}" data-rec-id="${rec.id}">
+        <div class="review-row-head">
+          <div>
+            <h4>${rec.dishName}</h4>
+            <p>${ctx.consumerId}, ${ctx.age}</p>
+          </div>
+          <span class="kcal-pill">${rec.dishCalories} kcal</span>
+        </div>
+        <div class="review-row-meta">
+          <span class="mini-pill objective-pill">${ctx.objective}</span>
+          <span class="mini-pill status-pill status-${rec.status}">${getStatusLabel(rec.status)}</span>
+          ${(rec.dishAllergens || []).map(a => `<span class="mini-pill allergen-pill">${a}</span>`).join('')}
+        </div>
+      </article>
+    `;
+  }
+
+  function renderDetail(rec, ctx) {
+    const commentValue = commentDrafts[rec.id] ?? rec.nutritionistComment ?? '';
+    return `
+      <div class="review-detail-card glass">
+        <div class="dish-summary">
+          <div>
+            <h3>${rec.dishName}</h3>
+            <span class="detail-sub">${rec.dishCategory || 'Plat principal'}</span>
+          </div>
+          <span class="kcal-pill">${rec.dishCalories} kcal</span>
+        </div>
+
+        <p class="dish-description">${rec.dishDescription || 'Aucune description disponible.'}</p>
+
+        <div class="detail-section">
+          <h4>Allergenes</h4>
+          <div class="chip-wrap">
+            ${(rec.dishAllergens || []).length > 0
+              ? rec.dishAllergens.map(a => `<span class="mini-pill allergen-pill">${a}</span>`).join('')
+              : '<span class="detail-muted">Aucun allergene declare</span>'}
+          </div>
+        </div>
+
+        <div class="detail-section snapshot-card">
+          <h4>Profil consommateur</h4>
+          <div class="snapshot-grid">
+            <span><strong>Age:</strong> ${ctx.age}</span>
+            <span><strong>Sexe:</strong> ${ctx.sex}</span>
+            <span><strong>Poids:</strong> ${ctx.poids}</span>
+            <span><strong>Taille:</strong> ${ctx.taille}</span>
+            <span><strong>IMC:</strong> ${ctx.imc}</span>
+            <span><strong>ID:</strong> ${ctx.consumerId}</span>
+          </div>
+          <div class="snapshot-goal">
+            <strong>Objectif:</strong>
+            <span class="mini-pill objective-pill">${ctx.objective}</span>
+          </div>
+        </div>
+
+        <div class="detail-section decision-zone">
+          <label for="nutri-comment">Commentaire</label>
+          <textarea id="nutri-comment" placeholder="Ajouter un commentaire...">${commentValue}</textarea>
+          ${actionError ? `<p class="decision-error">${actionError}</p>` : ''}
+          <div class="decision-actions">
+            <button class="btn btn-success" id="btn-approve">Valider la recommandation</button>
+            <button class="btn btn-danger" id="btn-reject">Rejeter</button>
+          </div>
+        </div>
+      </div>
+    `;
+  }
 
   function render() {
-    // Re-read from localStorage on every render to get fresh data after approve/reject
-    const allRecs = getRecommendations();
+    const allRecs = getSortedRecommendations();
     const users = getUsers().filter(u => u.role === 'consumer');
-
-    let filteredRecs = allRecs;
-    if (filterStatus === 'pending') filteredRecs = allRecs.filter(r => r.status === 'pending');
-    else if (filterStatus === 'approved') filteredRecs = allRecs.filter(r => r.status === 'approved');
-    else if (filterStatus === 'rejected') filteredRecs = allRecs.filter(r => r.status === 'rejected');
+    const filteredRecs = applyFilters(allRecs, users);
 
     const pendingCount = allRecs.filter(r => r.status === 'pending').length;
     const approvedCount = allRecs.filter(r => r.status === 'approved').length;
     const rejectedCount = allRecs.filter(r => r.status === 'rejected').length;
 
+    const objectiveOptions = ['all', ...new Set(allRecs.map(rec => getRecContext(rec, users).objective))];
+
+    if (!selectedRecId || !allRecs.some(r => r.id === selectedRecId)) {
+      selectedRecId = filteredRecs[0]?.id || allRecs[0]?.id || null;
+    }
+
+    const selectedRec = allRecs.find(r => r.id === selectedRecId);
+    const selectedCtx = selectedRec ? getRecContext(selectedRec, users) : null;
+
     app.innerHTML = `
-      <div class="dashboard-container">
-        <div class="dashboard-header glass">
-          <div class="dashboard-welcome">
-            <h2>👨‍⚕️ Espace Nutritionniste</h2>
-            <p>Bienvenue, Dr. ${user.username}</p>
+      <div class="dashboard-container nutrition-dashboard">
+        <div class="review-header glass">
+          <div>
+            <h2>Recommandations a valider</h2>
+            <p>Revue rapide par ${user.username}</p>
           </div>
-          <div class="dashboard-actions">
-            <button class="btn btn-danger" id="btn-logout">🚪 Déconnexion</button>
-          </div>
+          <button class="btn btn-outline" id="btn-logout">Deconnexion</button>
         </div>
 
-        <!-- Stats -->
-        <div class="stats-grid">
-          <div class="stat-card glass">
-            <span class="stat-icon">👥</span>
-            <div class="stat-value">${users.length}</div>
-            <div class="stat-label">Consommateurs</div>
-          </div>
-          <div class="stat-card glass">
-            <span class="stat-icon">📋</span>
-            <div class="stat-value">${allRecs.length}</div>
-            <div class="stat-label">Total recommandations</div>
-          </div>
-          <div class="stat-card glass">
-            <span class="stat-icon">⏳</span>
-            <div class="stat-value pending-color">${pendingCount}</div>
-            <div class="stat-label">En attente</div>
-          </div>
-          <div class="stat-card glass">
-            <span class="stat-icon">✅</span>
-            <div class="stat-value approved-color">${approvedCount}</div>
-            <div class="stat-label">Validées</div>
-          </div>
-          <div class="stat-card glass">
-            <span class="stat-icon">❌</span>
-            <div class="stat-value rejected-color">${rejectedCount}</div>
-            <div class="stat-label">Rejetées</div>
-          </div>
+        <div class="review-stats">
+          <span class="review-chip chip-pending">En attente: ${pendingCount}</span>
+          <span class="review-chip chip-approved">Validees: ${approvedCount}</span>
+          <span class="review-chip chip-rejected">Rejetees: ${rejectedCount}</span>
         </div>
+        ${toastMessage ? `<div class="review-toast">${toastMessage}</div>` : ''}
 
-        <!-- Filter Tabs -->
-        <div class="filter-tabs glass">
-          <button class="filter-tab ${filterStatus === 'all' ? 'active' : ''}" data-filter="all">Toutes (${allRecs.length})</button>
-          <button class="filter-tab ${filterStatus === 'pending' ? 'active' : ''}" data-filter="pending">⏳ En attente (${pendingCount})</button>
-          <button class="filter-tab ${filterStatus === 'approved' ? 'active' : ''}" data-filter="approved">✅ Validées (${approvedCount})</button>
-          <button class="filter-tab ${filterStatus === 'rejected' ? 'active' : ''}" data-filter="rejected">❌ Rejetées (${rejectedCount})</button>
-        </div>
-
-        <!-- Recommendations List -->
-        <div class="nutri-layout">
-          <div class="recs-list">
-            ${filteredRecs.length === 0 ? `
-              <div class="empty-state glass">
-                <span class="empty-icon">📭</span>
-                <h3>Aucune recommandation</h3>
-                <p>Aucune recommandation à afficher pour ce filtre.</p>
-              </div>
-            ` : filteredRecs.map(rec => {
-      const consumer = users.find(u => u.id === rec.userId);
-      const profile = getProfile(rec.userId);
-      return `
-                <div class="nutri-rec-card glass ${selectedRec === rec.id ? 'selected' : ''}" data-rec-id="${rec.id}">
-                  <div class="nutri-rec-header">
-                    <span class="rec-image">${rec.dishImage}</span>
-                    <div class="nutri-rec-info">
-                      <h4>${rec.dishName}</h4>
-                      <span class="rec-for">Pour: <strong>${profile?.nom || consumer?.username || 'Inconnu'}</strong></span>
-                    </div>
-                    <span class="status-badge badge-${rec.status}">
-                      ${rec.status === 'pending' ? '⏳' : rec.status === 'approved' ? '✅' : '❌'}
-                    </span>
-                  </div>
+        <div class="review-layout">
+          <section class="review-queue glass">
+            <div class="review-queue-top">
+              <button class="btn btn-primary" id="btn-validate-next">Valider la prochaine recommandation</button>
+              <div class="review-filters">
+                <div class="status-filter-row">
+                  <button class="status-filter ${filterStatus === 'all' ? 'active' : ''}" data-status="all">Tous</button>
+                  <button class="status-filter ${filterStatus === 'pending' ? 'active' : ''}" data-status="pending">En attente</button>
+                  <button class="status-filter ${filterStatus === 'approved' ? 'active' : ''}" data-status="approved">Validee</button>
+                  <button class="status-filter ${filterStatus === 'rejected' ? 'active' : ''}" data-status="rejected">Rejetee</button>
                 </div>
-              `;
-    }).join('')}
-          </div>
-
-          <!-- Detail Panel -->
-          <div class="detail-panel" id="detail-panel">
-            ${selectedRec ? renderDetailPanel(selectedRec, allRecs, users) : `
-              <div class="empty-state glass">
-                <span class="empty-icon">👈</span>
-                <h3>Sélectionnez une recommandation</h3>
-                <p>Cliquez sur une recommandation pour voir les détails et valider/rejeter.</p>
+                <select id="objective-filter">
+                  ${objectiveOptions.map((objective) => `
+                    <option value="${objective}" ${filterObjective === objective ? 'selected' : ''}>
+                      ${objective === 'all' ? 'Tous objectifs' : objective}
+                    </option>
+                  `).join('')}
+                </select>
               </div>
-            `}
-          </div>
+            </div>
+
+            <div class="review-list">
+              ${filteredRecs.length === 0
+                ? '<div class="empty-inline"><p>Aucune recommandation pour ces filtres.</p></div>'
+                : filteredRecs.map((rec) => renderQueueRow(rec, getRecContext(rec, users))).join('')}
+            </div>
+          </section>
+
+          <section class="review-detail">
+            ${pendingCount === 0
+              ? `
+                <div class="empty-state glass">
+                  <h3>Aucune recommandation en attente</h3>
+                  <p>Toutes les recommandations ont ete traitees.</p>
+                </div>
+              `
+              : selectedRec && selectedCtx
+                ? renderDetail(selectedRec, selectedCtx)
+                : `
+                  <div class="empty-state glass">
+                    <h3>Selectionnez une recommandation</h3>
+                    <p>Cliquez sur une ligne de la file de revue.</p>
+                  </div>
+                `}
+          </section>
         </div>
       </div>
     `;
 
-    // Event listeners
     document.getElementById('btn-logout')?.addEventListener('click', () => onNavigate('logout'));
 
-    document.querySelectorAll('.filter-tab').forEach(tab => {
-      tab.addEventListener('click', () => {
-        filterStatus = tab.dataset.filter;
-        render();
-      });
-    });
-
-    document.querySelectorAll('.nutri-rec-card').forEach(card => {
-      card.addEventListener('click', () => {
-        selectedRec = card.dataset.recId;
-        render();
-      });
-    });
-
-    // Approve / Reject buttons
-    document.getElementById('btn-approve')?.addEventListener('click', () => {
-      const comment = document.getElementById('nutri-comment')?.value || '';
-      updateRecStatus(selectedRec, 'approved', comment, user.id);
+    document.getElementById('btn-validate-next')?.addEventListener('click', () => {
+      const nextId = getNextPendingId(allRecs, selectedRecId);
+      if (!nextId) {
+        showToast('Aucune recommandation en attente.');
+      } else {
+        selectedRecId = nextId;
+        actionError = '';
+      }
       render();
+    });
+
+    document.querySelectorAll('.status-filter').forEach((button) => {
+      button.addEventListener('click', () => {
+        filterStatus = button.dataset.status;
+        actionError = '';
+        render();
+      });
+    });
+
+    document.getElementById('objective-filter')?.addEventListener('change', (event) => {
+      filterObjective = event.target.value;
+      actionError = '';
+      render();
+    });
+
+    document.querySelectorAll('.review-row').forEach((row) => {
+      row.addEventListener('click', () => {
+        selectedRecId = row.dataset.recId;
+        actionError = '';
+        render();
+      });
+    });
+
+    document.getElementById('nutri-comment')?.addEventListener('input', (event) => {
+      if (selectedRecId) commentDrafts[selectedRecId] = event.target.value;
+      if (actionError) actionError = '';
+    });
+
+    document.getElementById('btn-approve')?.addEventListener('click', () => {
+      handleStatusUpdate('approved');
     });
 
     document.getElementById('btn-reject')?.addEventListener('click', () => {
-      const comment = document.getElementById('nutri-comment')?.value || '';
-      updateRecStatus(selectedRec, 'rejected', comment, user.id);
-      render();
+      handleStatusUpdate('rejected');
     });
   }
 
   render();
 }
 
-function renderDetailPanel(recId, allRecs, users) {
-  const rec = allRecs.find(r => r.id === recId);
-  if (!rec) return '<div class="empty-state glass"><p>Recommandation introuvable</p></div>';
-
-  const profile = getProfile(rec.userId);
-  const consumer = users.find(u => u.id === rec.userId);
-  const bmi = profile ? (profile.poids / (profile.taille * profile.taille)).toFixed(1) : '—';
-
-  return `
-    <div class="detail-content glass">
-      <div class="detail-dish">
-        <div class="detail-dish-header">
-          <span class="detail-dish-image">${rec.dishImage}</span>
-          <div>
-            <h3>${rec.dishName}</h3>
-            <span class="rec-category">${rec.dishCategory} — 🔥 ${rec.dishCalories} kcal</span>
-          </div>
-        </div>
-        <p class="rec-desc">${rec.dishDescription}</p>
-        ${rec.dishAllergens.length > 0 ? `
-          <div class="allergen-warning">
-            <strong>⚠️ Allergènes :</strong> ${rec.dishAllergens.join(', ')}
-          </div>
-        ` : '<div class="allergen-safe">✅ Aucun allergène identifié</div>'}
-      </div>
-
-      ${profile ? `
-        <div class="detail-profile">
-          <h4>👤 Profil du consommateur : ${profile.nom}</h4>
-          <div class="profile-detail-grid">
-            <div class="detail-item"><strong>Âge:</strong> ${profile.age} ans</div>
-            <div class="detail-item"><strong>Sexe:</strong> ${profile.sexe}</div>
-            <div class="detail-item"><strong>Poids:</strong> ${profile.poids} kg</div>
-            <div class="detail-item"><strong>Taille:</strong> ${profile.taille} m</div>
-            <div class="detail-item"><strong>IMC:</strong> ${bmi}</div>
-            <div class="detail-item"><strong>Objectif:</strong> ${profile.objectifs}</div>
-            <div class="detail-item"><strong>Mode de vie:</strong> ${profile.modeDeVie}</div>
-            <div class="detail-item"><strong>Activité:</strong> ${profile.activitePhysique}</div>
-            <div class="detail-item"><strong>Préférence:</strong> ${profile.preference}</div>
-            <div class="detail-item"><strong>Repas/jour:</strong> ${profile.nbRepas}</div>
-          </div>
-          ${profile.hasMaladie === 'oui' ? `
-            <div class="detail-warning">
-              <strong>🏥 Maladie chronique :</strong> ${profile.maladie || profile.maladieAutre || 'Non précisée'}
-            </div>
-          ` : ''}
-          ${profile.medicaments ? `
-            <div class="detail-info">
-              <strong>💊 Médicaments :</strong> ${profile.medicaments}
-            </div>
-          ` : ''}
-          ${(profile.allergies || []).length > 0 ? `
-            <div class="detail-warning">
-              <strong>⚠️ Allergies :</strong> ${profile.allergies.join(', ')}
-            </div>
-          ` : ''}
-          ${(profile.symptomes || []).length > 0 ? `
-            <div class="detail-info">
-              <strong>🩺 Symptômes :</strong> ${profile.symptomes.join(', ')}
-            </div>
-          ` : ''}
-        </div>
-      ` : '<div class="detail-warning">⚠️ Profil du consommateur non disponible</div>'}
-
-      <div class="detail-actions">
-        <div class="form-group">
-          <label for="nutri-comment">💬 Commentaire (optionnel)</label>
-          <textarea id="nutri-comment" placeholder="Ajoutez un commentaire pour le consommateur...">${rec.nutritionistComment || ''}</textarea>
-        </div>
-        <div class="action-buttons">
-          <button class="btn btn-success btn-lg" id="btn-approve">✅ Valider cette recommandation</button>
-          <button class="btn btn-danger btn-lg" id="btn-reject">❌ Rejeter cette recommandation</button>
-        </div>
-        ${rec.status !== 'pending' ? `
-          <div class="current-status">
-            Statut actuel : <span class="status-badge badge-${rec.status}">
-              ${rec.status === 'approved' ? '✅ Validé' : '❌ Rejeté'}
-            </span>
-          </div>
-        ` : ''}
-      </div>
-    </div>
-  `;
-}
-
 function updateRecStatus(recId, status, comment, nutritionistId) {
   const recs = getRecommendations();
-  const idx = recs.findIndex(r => r.id === recId);
-  if (idx !== -1) {
-    recs[idx].status = status;
-    recs[idx].nutritionistComment = comment;
-    recs[idx].nutritionistId = nutritionistId;
-    recs[idx].validatedAt = new Date().toISOString();
-    saveRecommendations(recs);
-  }
+  const index = recs.findIndex(r => r.id === recId);
+  if (index === -1) return;
+
+  recs[index].status = status;
+  recs[index].nutritionistComment = comment;
+  recs[index].nutritionistId = nutritionistId;
+  recs[index].validatedAt = new Date().toISOString();
+  saveRecommendations(recs);
 }
