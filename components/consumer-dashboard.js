@@ -126,7 +126,7 @@ export function renderConsumerDashboard(app, user, onNavigate) {
                 <div class="stat-card glass">
                   <span class="stat-icon">✅</span>
                   <div class="stat-value approved-color">${approvedCount}</div>
-                  <div class="stat-label">Validées</div>
+                  <div class="stat-label">Validees</div>
                 </div>
                 <div class="stat-card glass">
                   <span class="stat-icon">⏳</span>
@@ -141,8 +141,8 @@ export function renderConsumerDashboard(app, user, onNavigate) {
                   <div class="status-filters">
                     <button class="status-filter ${filterStatus === 'all' ? 'active' : ''}" data-status="all">Toutes (${recs.length})</button>
                     <button class="status-filter ${filterStatus === 'pending' ? 'active' : ''}" data-status="pending">En attente (${pendingCount})</button>
-                    <button class="status-filter ${filterStatus === 'approved' ? 'active' : ''}" data-status="approved">Validées (${approvedCount})</button>
-                    <button class="status-filter ${filterStatus === 'rejected' ? 'active' : ''}" data-status="rejected">Rejetées (${rejectedCount})</button>
+                    <button class="status-filter ${filterStatus === 'approved' ? 'active' : ''}" data-status="approved">Validees (${approvedCount})</button>
+                    <button class="status-filter ${filterStatus === 'rejected' ? 'active' : ''}" data-status="rejected">Rejetees (${rejectedCount})</button>
                   </div>
                 </div>
 
@@ -151,32 +151,35 @@ export function renderConsumerDashboard(app, user, onNavigate) {
                     <p>Aucune recommandation pour ce filtre.</p>
                   </div>
                 ` : `
-                  <div class="recs-grid">
-                    ${filteredRecs.map(rec => `
-                      <article class="rec-card glass status-${rec.status}">
-                        <div class="rec-header">
-                          <span class="rec-image">${rec.dishImage}</span>
-                          <div class="rec-info">
-                            <h4>${rec.dishName}</h4>
-                            <span class="rec-category">${rec.dishCategory}</span>
+                  <div class="review-list">
+                    ${filteredRecs.map(rec => {
+                      const doneClass = rec.status === 'approved' ? 'is-approved' : rec.status === 'rejected' ? 'is-rejected' : '';
+                      return `
+                        <article class="review-row ${doneClass}">
+                          <div class="review-row-head">
+                            <div>
+                              <h4>${rec.dishName}</h4>
+                              <p>${rec.dishCategory}</p>
+                            </div>
+                            <span class="kcal-pill">${rec.dishCalories} kcal</span>
                           </div>
-                          <span class="status-badge badge-${rec.status}">
-                            ${rec.status === 'pending' ? 'En attente' : rec.status === 'approved' ? 'Validée' : 'Rejetée'}
-                          </span>
-                        </div>
-                        <p class="rec-desc">${rec.dishDescription}</p>
-                        <div class="rec-meta">
-                          <span class="rec-calories">${rec.dishCalories} kcal</span>
-                          ${rec.dishAllergens.length > 0 ? `<span class="rec-allergens">${rec.dishAllergens.join(', ')}</span>` : ''}
-                        </div>
-                        ${rec.nutritionistComment ? `
-                          <div class="rec-comment">
-                            <strong>Commentaire nutritionniste</strong>
-                            <p>${rec.nutritionistComment}</p>
+                          <div class="review-row-meta">
+                            <span class="mini-pill objective-pill">${profile?.objectifs || 'Objectif non defini'}</span>
+                            <span class="mini-pill status-pill status-${rec.status}">
+                              ${rec.status === 'pending' ? 'En attente' : rec.status === 'approved' ? 'Validée' : 'Rejetée'}
+                            </span>
+                            ${(rec.dishAllergens || []).map(a => `<span class="mini-pill allergen-pill">${a}</span>`).join('')}
                           </div>
-                        ` : ''}
-                      </article>
-                    `).join('')}
+                          <p class="rec-desc">${rec.dishDescription}</p>
+                          ${rec.nutritionistComment ? `
+                            <div class="rec-comment">
+                              <strong>Commentaire nutritionniste</strong>
+                              <p>${rec.nutritionistComment}</p>
+                            </div>
+                          ` : ''}
+                        </article>
+                      `;
+                    }).join('')}
                   </div>
                 `}
               </section>
@@ -200,8 +203,8 @@ export function renderConsumerDashboard(app, user, onNavigate) {
                 <div class="summary-list">
                   <div class="summary-row"><span>Total recommandations</span><strong>${recs.length}</strong></div>
                   <div class="summary-row"><span>En attente</span><strong class="pending-color">${pendingCount}</strong></div>
-                  <div class="summary-row"><span>Validées</span><strong class="approved-color">${approvedCount}</strong></div>
-                  <div class="summary-row"><span>Rejetées</span><strong class="rejected-color">${rejectedCount}</strong></div>
+                  <div class="summary-row"><span>Validees</span><strong class="approved-color">${approvedCount}</strong></div>
+                  <div class="summary-row"><span>Rejetees</span><strong class="rejected-color">${rejectedCount}</strong></div>
                 </div>
               </div>
             </aside>
