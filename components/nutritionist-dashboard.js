@@ -1,4 +1,5 @@
 import { getRecommendations, saveRecommendations, getProfile, getUsers } from '../utils/storage.js';
+import { logAuditAction, sanitizeInput } from '../utils/security.js';
 
 export function renderNutritionistDashboard(app, user, onNavigate) {
   let filterStatus = 'pending';
@@ -308,8 +309,11 @@ function updateRecStatus(recId, status, comment, nutritionistId) {
   if (index === -1) return;
 
   recs[index].status = status;
-  recs[index].nutritionistComment = comment;
+  recs[index].nutritionistComment = sanitizeInput(comment);
   recs[index].nutritionistId = nutritionistId;
   recs[index].validatedAt = new Date().toISOString();
   saveRecommendations(recs);
+  
+  // Enregistrement inaltérable de l'action dans le journal d'audit
+  logAuditAction(nutritionistId, status === 'approved' ? 'VALIDATE_REC' : 'REJECT_REC', recId);
 }

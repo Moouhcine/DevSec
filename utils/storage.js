@@ -1,3 +1,6 @@
+import { encryptData, decryptData } from './crypto.js';
+import { checkWafLockout, recordFailedLogin, resetWafLockout } from './security.js';
+
 const KEYS = {
     USERS: 'nutriapp_users',
     CURRENT_USER: 'nutriapp_current_user',
@@ -30,14 +33,35 @@ export function getProfiles() {
 }
 
 export function saveProfile(userId, profile) {
+    const currentUser = getCurrentUser();
+    // Contrôle d'accès ABAC (Élévation de privilèges)
+    if (currentUser && currentUser.role === 'consumer' && currentUser.id !== userId) {
+        console.error("ABAC: Action bloquée. Impossible de modifier le profil d'un autre utilisateur.");
+        return;
+    }
+
     const profiles = getProfiles();
-    profiles[userId] = profile;
+    // Chiffrement des données du profil avant sauvegarde
+    profiles[userId] = encryptData(profile);
     localStorage.setItem(KEYS.PROFILES, JSON.stringify(profiles));
 }
 
 export function getProfile(userId) {
+    const currentUser = getCurrentUser();
+    // Contrôle d'accès ABAC (Élévation de privilèges)
+    if (currentUser && currentUser.role === 'consumer' && currentUser.id !== userId) {
+        console.error("ABAC: Accès refusé. Vous ne pouvez lire que votre propre profil.");
+        return null;
+    }
+
     const profiles = getProfiles();
-    return profiles[userId] || null;
+    if (!profiles[userId]) return null;
+    
+    // Déchiffrement à la volée (rétro-compatibilité s'il s'agit d'un objet non chiffré)
+    if (typeof profiles[userId] === 'string') {
+        return decryptData(profiles[userId]);
+    }
+    return profiles[userId];
 }
 
 export function getRecommendations() {
@@ -71,7 +95,7 @@ export function getPendingRecommendations() {
     return getRecommendations().filter(r => r.status === 'pending');
 }
 
-export function registerUser(username, password, role) {
+export function registerUser(username, password, role, totpSecret) {
     const users = getUsers();
     if (users.find(u => u.username === username)) {
         return { success: false, error: 'Ce nom d\'utilisateur existe déjà' };
@@ -81,6 +105,7 @@ export function registerUser(username, password, role) {
         username,
         password,
         role,
+        totpSecret,
         createdAt: new Date().toISOString()
     };
     users.push(user);
@@ -88,13 +113,40 @@ export function registerUser(username, password, role) {
     return { success: true, user };
 }
 
-export function loginUser(username, password) {
+export function loginUser(username, password, totpCode) {
+    const wafCheck = checkWafLockout(username);
+    if (wafCheck.locked) {
+        return { success: false, error: `Compte bloqué (WAF). Réessayez dans ${wafCheck.remaining}s.` };
+    }
+
     const users = getUsers();
     const user = users.find(u => u.username === username && u.password === password);
+    
     if (user) {
+        // Validation MFA TOTP
+        if (user.totpSecret) {
+            if (!totpCode) {
+                return { success: false, requireTotp: true }; // Demande le code à la vue
+            }
+            
+            try {
+                // Utilisation d'otplib injecté globablement via CDN
+                const isValid = window.otplib.authenticator.check(totpCode, user.totpSecret);
+                if (!isValid) {
+                    recordFailedLogin(username);
+                    return { success: false, error: 'Code MFA incorrect' };
+                }
+            } catch (err) {
+                return { success: false, error: 'Erreur lors de la vérification MFA' };
+            }
+        }
+
+        resetWafLockout(username);
         setCurrentUser(user);
         return { success: true, user };
     }
+    
+    recordFailedLogin(username);
     return { success: false, error: 'Identifiants incorrects' };
 }
 

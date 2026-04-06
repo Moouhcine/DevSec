@@ -29,9 +29,12 @@ class NutriApp {
     }
 
     showAuth() {
-        renderAuth(this.app, (username, password, isLogin, role) => {
+        renderAuth(this.app, (username, password, isLogin, role, totpCode, totpSecret) => {
             if (isLogin) {
-                const result = loginUser(username, password);
+                const result = loginUser(username, password, totpCode);
+                if (result.requireTotp) {
+                    return { requireTotp: true };
+                }
                 if (result.success) {
                     this.currentUser = result.user;
                     this.route();
@@ -39,10 +42,10 @@ class NutriApp {
                     showAuthError(result.error);
                 }
             } else {
-                const result = registerUser(username, password, role);
+                const result = registerUser(username, password, role, totpSecret);
                 if (result.success) {
                     this.currentUser = result.user;
-                    loginUser(username, password);
+                    loginUser(username, password, totpCode); // Se connecte avec le code qu'il vient de valider
                     this.route();
                 } else {
                     showAuthError(result.error);

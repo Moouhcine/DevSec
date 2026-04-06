@@ -1,6 +1,7 @@
 import { ALLERGIES, SYMPTOMS } from '../data/allergies.js';
 import { DISEASES, OBJECTIVES, LIFESTYLES, PREFERENCES, PROFESSIONS, SEXES, PHYSICAL_ACTIVITIES, ACTIVITY_FREQUENCIES } from '../data/diseases.js';
 import { saveProfile, getProfile } from '../utils/storage.js';
+import { sanitizeInput } from '../utils/security.js';
 
 export function renderProfileForm(app, user, onSave) {
     const existing = getProfile(user.id) || {};
@@ -269,30 +270,30 @@ export function renderProfileForm(app, user, onSave) {
         e.preventDefault();
 
         const profile = {
-            nom: document.getElementById('nom').value,
+            nom: sanitizeInput(document.getElementById('nom').value),
             age: parseInt(document.getElementById('age').value),
             sexe: document.getElementById('sexe').value,
-            profession: document.getElementById('profession').value,
-            ville: document.getElementById('ville').value,
+            profession: sanitizeInput(document.getElementById('profession').value),
+            ville: sanitizeInput(document.getElementById('ville').value),
             modeDeVie: document.getElementById('modeDeVie').value,
             poids: parseFloat(document.getElementById('poids').value),
             taille: parseFloat(document.getElementById('taille').value),
             objectifs: document.getElementById('objectifs').value,
             preference: document.getElementById('preference').value,
-            recettesAimees: document.getElementById('recettesAimees').value,
-            recettesNonAimees: document.getElementById('recettesNonAimees').value,
+            recettesAimees: sanitizeInput(document.getElementById('recettesAimees').value),
+            recettesNonAimees: sanitizeInput(document.getElementById('recettesNonAimees').value),
             nbRepas: parseInt(document.getElementById('nbRepas').value),
             activitePhysique: document.getElementById('activitePhysique').value,
             frequenceActivite: document.getElementById('frequenceActivite').value,
             hasMaladie: document.querySelector('input[name="hasMaladie"]:checked')?.value || 'non',
             maladie: document.getElementById('maladie').value,
-            maladieAutre: document.getElementById('maladieAutre').value,
-            medicaments: document.getElementById('medicaments').value,
+            maladieAutre: sanitizeInput(document.getElementById('maladieAutre').value),
+            medicaments: sanitizeInput(document.getElementById('medicaments').value),
             hasAllergie: document.querySelector('input[name="hasAllergie"]:checked')?.value || 'non',
             allergies: Array.from(document.querySelectorAll('input[name="allergies"]:checked')).map(c => c.value),
-            allergieAutre: document.getElementById('allergieAutre').value,
+            allergieAutre: sanitizeInput(document.getElementById('allergieAutre').value),
             symptomes: Array.from(document.querySelectorAll('input[name="symptomes"]:checked')).map(c => c.value),
-            symptomeAutre: document.getElementById('symptomeAutre').value,
+            symptomeAutre: sanitizeInput(document.getElementById('symptomeAutre').value),
             updatedAt: new Date().toISOString()
         };
 
