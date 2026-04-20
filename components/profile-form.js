@@ -5,230 +5,412 @@ import { sanitizeInput } from '../utils/security.js';
 
 export async function renderProfileForm(app, user, onSave) {
     const existing = await getProfile(user.id) || {};
+    let activeSection = 'personnel';
+    
+    const profile = {
+        nom: existing.nom || '',
+        age: existing.age || '',
+        sexe: existing.sexe || '',
+        profession: existing.profession || '',
+        ville: existing.ville || '',
+        modeDeVie: existing.modeDeVie || '',
+        poids: existing.poids || '',
+        taille: existing.taille || '',
+        objectifs: existing.objectifs || '',
+        preference: existing.preference || '',
+        recettesAimees: existing.recettesAimees || '',
+        recettesNonAimees: existing.recettesNonAimees || '',
+        activitePhysique: existing.activitePhysique || '',
+        frequenceActivite: existing.frequenceActivite || '',
+        hasMaladie: existing.hasMaladie || 'non',
+        maladie: existing.maladie || '',
+        allergies: existing.allergies || [],
+        symptomes: existing.symptomes || []
+    };
 
-    app.innerHTML = `
-    <div class="profile-container">
-      <div class="profile-header glass">
-        <h2>📋 Mon Profil Nutritionnel (Sécurisé SQL)</h2>
-        <p>Toutes vos données (y compris profession, ville et symptômes) sont chiffrées en AES-256.</p>
-      </div>
-      
-      <form id="profile-form" class="profile-form">
-        <!-- Section Informations Personnelles -->
-        <div class="form-section glass">
-          <h3><span class="section-icon">👤</span> Informations Personnelles</h3>
-          <div class="form-grid">
-            <div class="form-group">
-              <label for="nom">Nom <span class="required">*</span></label>
-              <input type="text" id="nom" value="${existing.nom || ''}" required placeholder="Votre nom complet">
-            </div>
-            <div class="form-group">
-              <label for="age">Âge <span class="required">*</span></label>
-              <input type="number" id="age" min="1" max="120" value="${existing.age || ''}" required placeholder="Votre âge">
-            </div>
-            <div class="form-group">
-              <label for="sexe">Sexe <span class="required">*</span></label>
-              <select id="sexe" required>
-                <option value="">Sélectionnez</option>
-                ${SEXES.map(s => `<option value="${s}" ${existing.sexe === s ? 'selected' : ''}>${s}</option>`).join('')}
-              </select>
-            </div>
-            <div class="form-group">
-              <label for="profession">Profession <span class="required">*</span></label>
-              <select id="profession" required>
-                <option value="">Sélectionnez</option>
-                ${PROFESSIONS.map(p => `<option value="${p}" ${existing.profession === p ? 'selected' : ''}>${p}</option>`).join('')}
-              </select>
-            </div>
-            <div class="form-group">
-              <label for="ville">Ville <span class="required">*</span></label>
-              <input type="text" id="ville" value="${existing.ville || ''}" required placeholder="Votre ville">
-            </div>
-            <div class="form-group">
-              <label for="modeDeVie">Mode de vie <span class="required">*</span></label>
-              <select id="modeDeVie" required>
-                <option value="">Sélectionnez</option>
-                ${LIFESTYLES.map(l => `<option value="${l}" ${existing.modeDeVie === l ? 'selected' : ''}>${l}</option>`).join('')}
-              </select>
-            </div>
-          </div>
+    function render() {
+        app.innerHTML = `
+        <div class="profile-manager">
+            <!-- Sidebar Navigation -->
+            <aside class="profile-sidebar glass">
+                <div class="sidebar-content" style="padding: var(--space-4); flex: 1;">
+                    <h2 style="font-size: 14px; margin-bottom: 24px; color: var(--accent-primary);">Mon Profil</h2>
+                    <div class="sidebar-item ${activeSection === 'personnel' ? 'active' : ''} ${isSectionValid('personnel') ? 'valid' : ''}" data-section="personnel">
+                        <span>👤 Personnel</span>
+                        <span class="check">✓</span>
+                    </div>
+                    <div class="sidebar-item ${activeSection === 'mesures' ? 'active' : ''} ${isSectionValid('mesures') ? 'valid' : ''}" data-section="mesures">
+                        <span>⚖️ Mesures</span>
+                        <span class="check">✓</span>
+                    </div>
+                    <div class="sidebar-item ${activeSection === 'objectifs' ? 'active' : ''} ${isSectionValid('objectifs') ? 'valid' : ''}" data-section="objectifs">
+                        <span>🎯 Objectifs</span>
+                        <span class="check">✓</span>
+                    </div>
+                    <div class="sidebar-item ${activeSection === 'activite' ? 'active' : ''} ${isSectionValid('activite') ? 'valid' : ''}" data-section="activite">
+                        <span>🏃 Activité</span>
+                        <span class="check">✓</span>
+                    </div>
+                    <div class="sidebar-item ${activeSection === 'sante' ? 'active' : ''} ${isSectionValid('sante') ? 'valid' : ''}" data-section="sante">
+                        <span>🏥 Santé</span>
+                        <span class="check">✓</span>
+                    </div>
+                </div>
+
+                <div class="sidebar-footer">
+                    <span class="vault-badge">
+                        🔒 SQL SECURE
+                        <div class="tooltip">Toutes vos données sont chiffrées en AES-256 avant stockage.</div>
+                    </span>
+                </div>
+            </aside>
+
+            <!-- Main Content Area -->
+            <main class="profile-main-content">
+                <form id="profile-form" style="width: 100%;">
+                    ${renderActiveSection()}
+                </form>
+            </main>
+
+            <!-- Live Insights Panel -->
+            <aside class="profile-insights glass">
+                <div class="bmi-gauge-container">
+                    <h3 style="font-size: 14px; margin-bottom: 20px;">Indicateurs Santé</h3>
+                    <div class="gauge-svg-wrapper">
+                        <svg class="gauge-svg" viewBox="0 0 200 120">
+                            <!-- Background arcs as segments -->
+                            <path class="gauge-segment seg-blue" d="M30,100 A70,70 0 0,1 60,45" opacity="0.3" />
+                            <path class="gauge-segment seg-green" d="M65,42 A70,70 0 0,1 135,42" opacity="0.3" />
+                            <path class="gauge-segment seg-yellow" d="M140,45 A70,70 0 0,1 170,100" opacity="0.3" />
+                            
+                            <circle cx="100" cy="100" r="5" fill="var(--text-primary)" />
+                            <line id="gauge-needle" x1="100" y1="100" x2="100" y2="35" stroke="var(--text-primary)" stroke-width="4" stroke-linecap="round" />
+                        </svg>
+                        <span class="bmi-value-large" id="bmi-val">--</span>
+                        <span class="bmi-label-large">VOTRE IMC</span>
+                    </div>
+                    <div id="bmi-status" class="bmi-status-badge"></div>
+                    <p class="text-xs text-muted" style="margin-top:24px; text-align:left; line-height: 1.5;">
+                        Votre IMC est un repère pour adapter votre programme alimentaire.
+                    </p>
+                </div>
+                
+                <div class="glass security-info-box">
+                    <div class="title">CHIFFREMENT AES-256</div>
+                    <div class="desc">Vos données de santé sont sécurisées par un tunnel chiffré et stockées sous forme cryptée en base de données.</div>
+                </div>
+            </aside>
         </div>
 
-        <!-- Section Mesures Corporelles -->
-        <div class="form-section glass">
-          <h3><span class="section-icon">⚖️</span> Mesures Corporelles</h3>
-          <div class="form-grid">
-            <div class="form-group">
-              <label for="poids">Poids (kg) <span class="required">*</span></label>
-              <input type="number" id="poids" min="20" max="300" step="0.1" value="${existing.poids || ''}" required placeholder="ex: 70">
+        <!-- Sticky Footer -->
+        <footer class="sticky-profile-footer">
+            <div class="container">
+                <button type="button" class="btn btn-primary btn-lg" id="btn-save-sticky" style="min-width: 320px;">
+                    Enregistrer mon profil
+                </button>
             </div>
-            <div class="form-group">
-              <label for="taille">Taille (cm) <span class="required">*</span></label>
-              <input type="number" id="taille" min="50" max="250" step="1" value="${existing.taille || ''}" required placeholder="ex: 175">
-            </div>
-          </div>
-          <div class="bmi-display" id="bmi-display"></div>
-        </div>
+        </footer>
+        `;
 
-        <!-- Section Objectifs & Préférences -->
-        <div class="form-section glass">
-          <h3><span class="section-icon">🎯</span> Objectifs & Préférences</h3>
-          <div class="form-group">
-            <label for="objectifs">Objectifs Nutritionnels <span class="required">*</span></label>
-            <select id="objectifs" required>
-              <option value="">Sélectionnez</option>
-              ${OBJECTIVES.map(o => `<option value="${o}" ${existing.objectifs === o ? 'selected' : ''}>${o}</option>`).join('')}
-            </select>
-          </div>
-          <div class="form-group">
-            <label for="preference">Préférence alimentaire <span class="required">*</span></label>
-            <select id="preference" required>
-              <option value="">Sélectionnez</option>
-              ${PREFERENCES.map(p => `<option value="${p}" ${existing.preference === p ? 'selected' : ''}>${p}</option>`).join('')}
-            </select>
-          </div>
-          <div class="form-grid">
-            <div class="form-group">
-              <label for="recettesAimees">Recettes aimées</label>
-              <textarea id="recettesAimees" placeholder="ex: Soupe, pizzas...">${existing.recettesAimees || ''}</textarea>
-            </div>
-            <div class="form-group">
-              <label for="recettesNonAimees">Recettes non aimées</label>
-              <textarea id="recettesNonAimees" placeholder="ex: Sushi, brocoli...">${existing.recettesNonAimees || ''}</textarea>
-            </div>
-          </div>
-        </div>
+        setupListeners();
+        updateBMIUI();
+        updateSidebarValidIcons();
+    }
 
-        <!-- Section Activité Physique -->
-        <div class="form-section glass">
-          <h3><span class="section-icon">🏃</span> Activité Physique</h3>
-          <div class="form-group">
-            <label for="activitePhysique">Pratiquez-vous une activité ? <span class="required">*</span></label>
-            <select id="activitePhysique" required>
-              <option value="">Sélectionnez</option>
-              ${PHYSICAL_ACTIVITIES.map(a => `<option value="${a}" ${existing.activitePhysique === a ? 'selected' : ''}>${a}</option>`).join('')}
-            </select>
-          </div>
-          <div class="form-group" id="frequence-group" style="${existing.activitePhysique && existing.activitePhysique !== 'Aucune' ? '' : 'display:none'}">
-            <label for="frequenceActivite">Fréquence hebdomadaire</label>
-            <select id="frequenceActivite">
-              <option value="">Sélectionnez</option>
-              ${ACTIVITY_FREQUENCIES.map(f => `<option value="${f}" ${existing.frequenceActivite === f ? 'selected' : ''}>${f}</option>`).join('')}
-            </select>
-          </div>
-        </div>
-
-        <!-- Section Santé & Symptômes -->
-        <div class="form-section glass">
-          <h3><span class="section-icon">🏥</span> Santé & Symptômes (Données Chiffrées)</h3>
-          <div class="form-group">
-            <label>Maladie chronique ?</label>
-            <div class="radio-group">
-              <label class="radio-label">
-                <input type="radio" name="hasMaladie" value="oui" ${existing.hasMaladie === 'oui' ? 'checked' : ''}>
-                <span>Oui</span>
-              </label>
-              <label class="radio-label">
-                <input type="radio" name="hasMaladie" value="non" ${existing.hasMaladie !== 'oui' ? 'checked' : ''}>
-                <span>Non</span>
-              </label>
-            </div>
-          </div>
-          <div id="maladie-details" style="${existing.hasMaladie === 'oui' ? '' : 'display:none'}">
-            <div class="form-group">
-              <label for="maladie">Sélectionnez la maladie</label>
-              <select id="maladie">
-                <option value="">Sélectionnez</option>
-                ${DISEASES.map(d => `<option value="${d}" ${existing.maladie === d ? 'selected' : ''}>${d}</option>`).join('')}
-              </select>
-            </div>
-          </div>
-          <div class="form-group">
-            <label>Symptômes récents :</label>
-            <div class="checkbox-grid">
-              ${SYMPTOMS.map(s => `
-                <label class="checkbox-label">
-                  <input type="checkbox" name="symptomes" value="${s}" ${(existing.symptomes || []).includes(s) ? 'checked' : ''}>
-                  <span>${s}</span>
-                </label>
-              `).join('')}
-            </div>
-          </div>
-          <div class="form-group">
-            <label>Allergies alimentaires :</label>
-            <div class="checkbox-grid">
-              ${ALLERGIES.map(a => `
-                <label class="checkbox-label">
-                  <input type="checkbox" name="allergies" value="${a}" ${(existing.allergies || []).includes(a) ? 'checked' : ''}>
-                  <span>${a}</span>
-                </label>
-              `).join('')}
-            </div>
-          </div>
-        </div>
-
-        <button type="submit" class="btn btn-primary btn-full btn-lg" id="btn-save">
-          💾 Enregistrer le profil complet (SQL Secure)
-        </button>
-      </form>
-    </div>
-  `;
-
-    // Interactivité
-    const poidsInput = document.getElementById('poids');
-    const tailleInput = document.getElementById('taille');
-    function updateBMI() {
-        const poids = parseFloat(poidsInput.value);
-        const taille = parseFloat(tailleInput.value) / 100;
-        const bmiDisplay = document.getElementById('bmi-display');
-        if (poids && taille && taille > 0) {
-            const bmi = (poids / (taille * taille)).toFixed(1);
-            let category = bmi < 18.5 ? 'Insuffisance' : bmi < 25 ? 'Normal' : bmi < 30 ? 'Surpoids' : 'Obésité';
-            bmiDisplay.innerHTML = `<div class="bmi-result"><strong>IMC: ${bmi}</strong> — ${category}</div>`;
+    function isSectionValid(section) {
+        // Return true only if the section is actually filled
+        switch(section) {
+            case 'personnel': return !!(profile.nom && profile.age && profile.sexe && profile.profession && profile.ville);
+            case 'mesures': return !!(profile.poids && profile.taille);
+            case 'objectifs': return !!(profile.objectifs && profile.preference);
+            case 'activite': return !!profile.activitePhysique;
+            case 'sante': return (profile.symptomes.length > 0 || profile.allergies.length > 0); 
+            default: return false;
         }
     }
-    poidsInput.addEventListener('input', updateBMI);
-    tailleInput.addEventListener('input', updateBMI);
-    document.getElementById('activitePhysique').addEventListener('change', (e) => {
-        document.getElementById('frequence-group').style.display = e.target.value !== 'Aucune' && e.target.value ? '' : 'none';
-    });
-    document.querySelectorAll('input[name="hasMaladie"]').forEach(radio => {
-        radio.addEventListener('change', (e) => {
-            document.getElementById('maladie-details').style.display = e.target.value === 'oui' ? '' : 'none';
+
+    function renderActiveSection() {
+        switch(activeSection) {
+            case 'personnel': return `
+                <div class="form-section glass">
+                    <h3><span class="section-icon">👤</span> Informations Personnelles</h3>
+                    <div class="form-grid">
+                        <div class="form-group">
+                            <label>Nom Complet <span class="required">*</span></label>
+                            <input type="text" id="nom" value="${profile.nom}" required placeholder="Jean Dupont" tabindex="1">
+                        </div>
+                        <div class="form-group">
+                            <label>Âge <span class="required">*</span></label>
+                            <input type="number" id="age" value="${profile.age}" required placeholder="25" tabindex="2">
+                        </div>
+                    </div>
+                    <div class="form-grid-3">
+                        <div class="form-group">
+                            <label>Sexe <span class="required">*</span></label>
+                            <select id="sexe" required tabindex="3">
+                                <option value="">Sélectionnez</option>
+                                ${SEXES.map(s => `<option value="${s}" ${profile.sexe === s ? 'selected' : ''}>${s}</option>`).join('')}
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label>Profession <span class="required">*</span></label>
+                            <select id="profession" required tabindex="4">
+                                <option value="">Sélectionnez</option>
+                                ${PROFESSIONS.map(p => `<option value="${p}" ${profile.profession === p ? 'selected' : ''}>${p}</option>`).join('')}
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label>Ville <span class="required">*</span></label>
+                            <input type="text" id="ville" value="${profile.ville}" required placeholder="Paris" tabindex="5">
+                        </div>
+                    </div>
+                </div>
+            `;
+            case 'mesures': return `
+                <div class="form-section glass" style="max-width: 600px; margin: 0 auto;">
+                    <h3><span class="section-icon">⚖️</span> Mesures Corporelles</h3>
+                    <div class="form-grid">
+                        <div class="form-group">
+                            <label>Poids (kg) <span class="required">*</span></label>
+                            <input type="number" id="poids" min="20" max="300" step="0.1" value="${profile.poids}" required placeholder="70" tabindex="1">
+                        </div>
+                        <div class="form-group">
+                            <label>Taille (cm) <span class="required">*</span></label>
+                            <input type="number" id="taille" min="50" max="250" step="1" value="${profile.taille}" required placeholder="175" tabindex="2">
+                        </div>
+                    </div>
+                </div>
+            `;
+            case 'objectifs': return `
+                <div class="form-section glass">
+                    <h3><span class="section-icon">🎯</span> Objectifs & Préférences</h3>
+                    <div class="form-grid">
+                        <div class="form-group">
+                            <label>Objectif Principal <span class="required">*</span></label>
+                            <select id="objectifs" required tabindex="1">
+                                <option value="">Sélectionnez</option>
+                                ${OBJECTIVES.map(o => `<option value="${o}" ${profile.objectifs === o ? 'selected' : ''}>${o}</option>`).join('')}
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label>Régime Préféré <span class="required">*</span></label>
+                            <select id="preference" required tabindex="2">
+                                <option value="">Sélectionnez</option>
+                                ${PREFERENCES.map(p => `<option value="${p}" ${profile.preference === p ? 'selected' : ''}>${p}</option>`).join('')}
+                            </select>
+                        </div>
+                    </div>
+                    <div class="form-grid">
+                        <div class="form-group">
+                            <label>Recettes aimées</label>
+                            <textarea id="recettesAimees" placeholder="Pâtes, Poulet, Salade..." tabindex="3">${profile.recettesAimees}</textarea>
+                        </div>
+                        <div class="form-group">
+                            <label>Recettes non aimées</label>
+                            <textarea id="recettesNonAimees" placeholder="Sushi, Brocoli, Tofu..." tabindex="4">${profile.recettesNonAimees}</textarea>
+                        </div>
+                    </div>
+                </div>
+            `;
+            case 'activite': return `
+                <div class="form-section glass">
+                    <h3><span class="section-icon">🏃</span> Activité Physique</h3>
+                    <div class="form-group" style="max-width: 500px;">
+                        <label>Activité Sportive <span class="required">*</span></label>
+                        <select id="activitePhysique" required tabindex="1">
+                            <option value="">Sélectionnez</option>
+                            ${PHYSICAL_ACTIVITIES.map(a => `<option value="${a}" ${profile.activitePhysique === a ? 'selected' : ''}>${a}</option>`).join('')}
+                        </select>
+                    </div>
+                    <div class="form-group" id="frequence-group" style="${profile.activitePhysique && profile.activitePhysique !== 'Aucune' ? 'max-width: 500px;' : 'display:none'}">
+                        <label>Fréquence Hebdomadaire</label>
+                        <select id="frequenceActivite" tabindex="2">
+                            <option value="">Sélectionnez</option>
+                            ${ACTIVITY_FREQUENCIES.map(f => `<option value="${f}" ${profile.frequenceActivite === f ? 'selected' : ''}>${f}</option>`).join('')}
+                        </select>
+                    </div>
+                </div>
+            `;
+            case 'sante': return `
+                <div class="form-section glass">
+                    <h3><span class="section-icon">🏥</span> Santé & Symptômes</h3>
+                    <div class="form-group">
+                        <label>Souffrez-vous d'une maladie chronique ?</label>
+                        <div class="radio-group" style="margin-top: 10px;">
+                            <label class="radio-label">
+                                <input type="radio" name="hasMaladie" value="oui" ${profile.hasMaladie === 'oui' ? 'checked' : ''}>
+                                <span>Oui</span>
+                            </label>
+                            <label class="radio-label">
+                                <input type="radio" name="hasMaladie" value="non" ${profile.hasMaladie !== 'oui' ? 'checked' : ''}>
+                                <span>Non</span>
+                            </label>
+                        </div>
+                    </div>
+                    
+                    <div id="maladie-details" style="${profile.hasMaladie === 'oui' ? '' : 'display:none'}">
+                        <div class="form-group">
+                            <label>Sélectionnez la pathologie</label>
+                            <select id="maladie" tabindex="3">
+                                <option value="">Sélectionnez</option>
+                                ${DISEASES.map(d => `<option value="${d}" ${profile.maladie === d ? 'selected' : ''}>${d}</option>`).join('')}
+                            </select>
+                        </div>
+                    </div>
+
+                    <div class="form-group">
+                        <label>Symptômes récents</label>
+                        <div class="chip-cloud">
+                            ${SYMPTOMS.map(s => `
+                                <div class="chip ${profile.symptomes.includes(s) ? 'selected' : ''}" data-type="symptomes" data-value="${s}">
+                                    ${s}
+                                </div>
+                            `).join('')}
+                        </div>
+                    </div>
+
+                    <div class="form-group">
+                        <label>Allergies alimentaires</label>
+                        <div class="chip-cloud">
+                            ${ALLERGIES.map(a => `
+                                <div class="chip ${profile.allergies.includes(a) ? 'selected' : ''}" data-type="allergies" data-value="${a}">
+                                    ${a}
+                                </div>
+                            `).join('')}
+                        </div>
+                    </div>
+                </div>
+            `;
+            default: return '';
+        }
+    }
+
+    function setupListeners() {
+        // Sidebar Navigation
+        document.querySelectorAll('.sidebar-item').forEach(item => {
+            item.addEventListener('click', () => {
+                activeSection = item.dataset.section;
+                render();
+            });
         });
-    });
-    updateBMI();
 
-    // Soumission
-    document.getElementById('profile-form').addEventListener('submit', async (e) => {
-        e.preventDefault();
-        const btn = document.getElementById('btn-save');
-        btn.disabled = true;
-        btn.innerHTML = 'Hachage et Sync...';
+        // Input sync
+        const inputs = app.querySelectorAll('input, select, textarea');
+        inputs.forEach(input => {
+            input.addEventListener('input', (e) => {
+                const id = e.target.id;
+                if (id) profile[id] = e.target.value;
+                if (id === 'poids' || id === 'taille') updateBMIUI();
+                updateSidebarValidIcons();
+            });
+        });
 
-        const profile = {
-            nom: sanitizeInput(document.getElementById('nom').value),
-            age: parseInt(document.getElementById('age').value),
-            sexe: document.getElementById('sexe').value,
-            profession: document.getElementById('profession').value,
-            ville: sanitizeInput(document.getElementById('ville').value),
-            modeDeVie: document.getElementById('modeDeVie').value,
-            poids: parseFloat(document.getElementById('poids').value),
-            taille: parseFloat(document.getElementById('taille').value),
-            objectifs: document.getElementById('objectifs').value,
-            preference: document.getElementById('preference').value,
-            recettesAimees: sanitizeInput(document.getElementById('recettesAimees').value),
-            recettesNonAimees: sanitizeInput(document.getElementById('recettesNonAimees').value),
-            activitePhysique: document.getElementById('activitePhysique').value,
-            frequenceActivite: document.getElementById('frequenceActivite').value,
-            hasMaladie: document.querySelector('input[name="hasMaladie"]:checked')?.value || 'non',
-            maladie: document.getElementById('maladie').value,
-            allergies: Array.from(document.querySelectorAll('input[name="allergies"]:checked')).map(c => c.value),
-            symptomes: Array.from(document.querySelectorAll('input[name="symptomes"]:checked')).map(c => c.value),
-            updatedAt: new Date().toISOString()
-        };
+        app.querySelectorAll('input[name="hasMaladie"]').forEach(radio => {
+            radio.addEventListener('change', (e) => {
+                profile.hasMaladie = e.target.value;
+                const details = document.getElementById('maladie-details');
+                if (details) details.style.display = e.target.value === 'oui' ? '' : 'none';
+                updateSidebarValidIcons();
+            });
+        });
 
-        await saveProfile(user.id, profile);
-        await onSave(profile);
-    });
+        app.querySelectorAll('.chip').forEach(chip => {
+            chip.addEventListener('click', () => {
+                const type = chip.dataset.type;
+                const value = chip.dataset.value;
+                if (profile[type].includes(value)) {
+                    profile[type] = profile[type].filter(v => v !== value);
+                    chip.classList.remove('selected');
+                } else {
+                    profile[type].push(value);
+                    chip.classList.add('selected');
+                }
+                updateSidebarValidIcons();
+            });
+        });
+
+        document.getElementById('btn-save-sticky').addEventListener('click', async () => {
+            const btn = document.getElementById('btn-save-sticky');
+            btn.disabled = true;
+            btn.innerHTML = '🛡️ Chiffrement...';
+
+            const currentInputs = document.getElementById('profile-form').querySelectorAll('input, select, textarea');
+            currentInputs.forEach(i => { if(i.id) profile[i.id] = i.value; });
+
+            const finalProfile = { ...profile, updatedAt: new Date().toISOString() };
+            for (let key in finalProfile) {
+                if (typeof finalProfile[key] === 'string') {
+                    finalProfile[key] = sanitizeInput(finalProfile[key]);
+                }
+            }
+
+            await saveProfile(user.id, finalProfile);
+            await onSave(finalProfile);
+        });
+    }
+
+    function updateSidebarValidIcons() {
+        const items = document.querySelectorAll('.sidebar-item');
+        items.forEach(item => {
+            const section = item.dataset.section;
+            if (isSectionValid(section)) {
+                item.classList.add('valid');
+            } else {
+                item.classList.remove('valid');
+            }
+        });
+    }
+
+    function updateBMIUI() {
+        const peso = parseFloat(profile.poids);
+        const altura = parseFloat(profile.taille) / 100;
+        const bmiVal = document.getElementById('bmi-val');
+        const bmiStatus = document.getElementById('bmi-status');
+        const needle = document.getElementById('gauge-needle');
+
+        if (peso && altura && altura > 0) {
+            const bmi = (peso / (altura * altura)).toFixed(1);
+            bmiVal.innerText = bmi;
+
+            let color = '#3c8d69';
+            let label = 'Normal';
+            let angle = -90;
+
+            if (bmi < 18.5) {
+                label = 'Insuffisance';
+                color = '#6f9ccf';
+                angle = -75;
+            } else if (bmi < 25) {
+                label = 'Poids Santé';
+                color = '#3c8d69';
+                angle = -15;
+            } else if (bmi < 30) {
+                label = 'Surpoids';
+                color = '#e8ab5e';
+                angle = 40;
+            } else {
+                label = 'Obésité';
+                color = '#c9584b';
+                angle = 75;
+            }
+
+            bmiStatus.innerText = label;
+            bmiStatus.style.background = color + '22';
+            bmiStatus.style.color = color;
+            bmiStatus.style.border = `1px solid ${color}44`;
+            
+            if (needle) {
+                needle.setAttribute('transform', `rotate(${angle}, 100, 100)`);
+                needle.style.stroke = color;
+            }
+        } else {
+            bmiVal.innerText = '--';
+            bmiStatus.innerText = 'En attente...';
+            bmiStatus.style.background = 'var(--bg-secondary)';
+            bmiStatus.style.color = 'var(--text-muted)';
+            if (needle) needle.style.transform = `rotate(-180deg)`;
+        }
+    }
+
+    render();
 }

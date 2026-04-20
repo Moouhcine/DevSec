@@ -24,6 +24,12 @@ export function renderAuth(app, onLogin) {
             content = `
               <div class="auth-container">
                 <div class="auth-card glass">
+                  <div class="security-header" style="margin-bottom: 0;">
+                    <span class="vault-badge">
+                        🔒 MFA SECURED
+                        <div class="tooltip">Le jeton TOTP est validé côté serveur pour une sécurité maximale.</div>
+                    </span>
+                  </div>
                   <div class="auth-logo">
                     <span class="logo-icon">🔐</span>
                     <h1>Double Authentification</h1>
@@ -45,6 +51,12 @@ export function renderAuth(app, onLogin) {
             content = `
               <div class="auth-container">
                 <div class="auth-card glass">
+                  <div class="security-header" style="margin-bottom: 0;">
+                    <span class="vault-badge">
+                        🛡️ ONBOARDING SECURE
+                        <div class="tooltip">Votre clef secrète MFA est générée localement puis synchronisée.</div>
+                    </span>
+                  </div>
                   <div class="auth-logo">
                     <span class="logo-icon">📱</span>
                     <h1>Sécurisez votre compte</h1>
@@ -69,10 +81,16 @@ export function renderAuth(app, onLogin) {
             content = `
               <div class="auth-container">
                 <div class="auth-card glass">
+                  <div class="security-header" style="margin-bottom: 0;">
+                    <span class="vault-badge">
+                        🔒 SQL SECURE
+                        <div class="tooltip">Vos informations de connexion sont hachées et transmises via un tunnel sécurisé.</div>
+                    </span>
+                  </div>
                   <div class="auth-logo">
                     <span class="logo-icon">🥗</span>
                     <h1>NutriApp</h1>
-                    <p class="auth-subtitle">Votre assistant nutritionnel sécurisé (SQL Database)</p>
+                    <p class="auth-subtitle">Votre assistant nutritionnel sécurisé (AES-256)</p>
                   </div>
                   
                   <div class="auth-tabs">

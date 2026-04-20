@@ -1,36 +1,16 @@
-import { getAuditLogs, getSecuritySystemState } from '../utils/security.js';
+﻿import { getAuditLogs, getSecuritySystemState } from '../utils/security.js';
 
 /**
- * Composant de supervision technique de la sécurité (pour renforcer la crédibilité technique)
+ * Composant de supervision technique de la sécurité - Audit Logs Only
  */
 export async function renderSecurityAudit(container) {
     const logsData = await getAuditLogs();
-    const logs = [...logsData].reverse(); // Derniers logs en premier
-    const state = await getSecuritySystemState();
-
+    const logs = [...logsData].reverse();
+    
     const html = `
         <div class="security-audit-panel glass">
-            <h3><span class="section-icon">🛡️</span> Supervision Sécurité <span class="tech-badge status-active">LIVE</span></h3>
+            <h3><span class="section-icon">📜</span> Registre d'Audit des Accès <span class="tech-badge status-active">LIVE</span></h3>
             
-            <div class="security-grid">
-                <div class="security-stat">
-                    <div class="security-stat-label">Pare-feu (WAF)</div>
-                    <div class="security-stat-value">${state.wafStatus}</div>
-                </div>
-                <div class="security-stat">
-                    <div class="security-stat-label">Chiffrement Rest</div>
-                    <div class="security-stat-value">${state.encryptionType}</div>
-                </div>
-                <div class="security-stat">
-                    <div class="security-stat-label">Auth Standard</div>
-                    <div class="security-stat-value">${state.mfaStandard}</div>
-                </div>
-                <div class="security-stat">
-                    <div class="security-stat-label">Accès ABAC</div>
-                    <div class="security-stat-value">${state.abacPolicy}</div>
-                </div>
-            </div>
-
             <div class="audit-log-container">
                 ${logs.length === 0 ? '<div class="audit-log-entry">En attente d\'événements...</div>' : ''}
                 ${logs.map(log => `
