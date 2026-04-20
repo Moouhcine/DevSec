@@ -1,6 +1,7 @@
 # Sécurité - NE JAMAIS PUSH CES FICHIERS
 .env
 backend/.env
+DOCUMENTATION_TECHNIQUE.md
 *.key
 *.pem
 
