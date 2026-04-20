@@ -9,44 +9,39 @@ class NutriApp {
         this.app = document.getElementById('app');
         this.currentUser = getCurrentUser();
 
-        // Cross-tab real-time sync: when another tab changes localStorage
-        // (e.g. nutritionist validates), auto-refresh this tab's dashboard
-        window.addEventListener('storage', (e) => {
-            if (e.key === 'nutriapp_recommendations' && this.currentUser) {
-                this.route();
-            }
-        });
-
+        // Cross-tab real-time sync is harder with SQL, we rely on standard refreshes
+        // or we could implement polling. For now, we manually refresh on route.
         this.init();
     }
 
-    init() {
+    async init() {
         if (this.currentUser) {
-            this.route();
+            await this.route();
         } else {
             this.showAuth();
         }
     }
 
     showAuth() {
-        renderAuth(this.app, (username, password, isLogin, role, totpCode, totpSecret) => {
+        renderAuth(this.app, async (username, password, isLogin, role, totpCode, totpSecret) => {
             if (isLogin) {
-                const result = loginUser(username, password, totpCode);
+                const result = await loginUser(username, password, totpCode);
                 if (result.requireTotp) {
                     return { requireTotp: true };
                 }
                 if (result.success) {
                     this.currentUser = result.user;
-                    this.route();
+                    await this.route();
                 } else {
                     showAuthError(result.error);
                 }
             } else {
-                const result = registerUser(username, password, role, totpSecret);
+                const result = await registerUser(username, password, role, totpSecret);
                 if (result.success) {
                     this.currentUser = result.user;
-                    loginUser(username, password, totpCode); // Se connecte avec le code qu'il vient de valider
-                    this.route();
+                    // Auto-login after registration
+                    await loginUser(username, password, totpCode); 
+                    await this.route();
                 } else {
                     showAuthError(result.error);
                 }
@@ -54,35 +49,35 @@ class NutriApp {
         });
     }
 
-    route() {
+    async route() {
         if (!this.currentUser) {
             this.showAuth();
             return;
         }
 
         if (this.currentUser.role === 'nutritionist') {
-            this.showNutritionistDashboard();
+            await this.showNutritionistDashboard();
         } else {
             // Consumer: check if profile exists
-            const profile = getProfile(this.currentUser.id);
+            const profile = await getProfile(this.currentUser.id);
             if (!profile) {
                 this.showProfileForm();
             } else {
-                this.showConsumerDashboard();
+                await this.showConsumerDashboard();
             }
         }
     }
 
     showProfileForm() {
-        renderProfileForm(this.app, this.currentUser, (profile) => {
-            // Generate recommendations after profile save
-            generateRecommendations(this.currentUser.id);
-            this.showConsumerDashboard();
+        renderProfileForm(this.app, this.currentUser, async (profile) => {
+            // Generate recommendations after profile save (handled by server now)
+            await generateRecommendations(this.currentUser.id);
+            await this.showConsumerDashboard();
         });
     }
 
-    showConsumerDashboard() {
-        renderConsumerDashboard(this.app, this.currentUser, (action) => {
+    async showConsumerDashboard() {
+        await renderConsumerDashboard(this.app, this.currentUser, async (action) => {
             if (action === 'logout') {
                 logoutUser();
                 this.currentUser = null;
@@ -93,8 +88,8 @@ class NutriApp {
         });
     }
 
-    showNutritionistDashboard() {
-        renderNutritionistDashboard(this.app, this.currentUser, (action) => {
+    async showNutritionistDashboard() {
+        await renderNutritionistDashboard(this.app, this.currentUser, async (action) => {
             if (action === 'logout') {
                 logoutUser();
                 this.currentUser = null;

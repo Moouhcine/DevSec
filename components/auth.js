@@ -34,7 +34,7 @@ export function renderAuth(app, onLogin) {
                       <label for="totp">Code de vérification</label>
                       <input type="text" id="totp" placeholder="123456" required autocomplete="off" maxlength="6">
                     </div>
-                    <button type="submit" class="btn btn-primary btn-full">Vérifier et se connecter</button>
+                    <button type="submit" class="btn btn-primary btn-full" id="btn-submit">Vérifier et se connecter</button>
                     <button type="button" class="btn btn-outline btn-full" id="btn-cancel" style="margin-top: 16px;">Annuler</button>
                     <div id="auth-error" class="auth-error hidden"></div>
                   </form>
@@ -58,7 +58,7 @@ export function renderAuth(app, onLogin) {
                       <label for="totp">Code d'activation généré</label>
                       <input type="text" id="totp" placeholder="123456" required autocomplete="off" maxlength="6">
                     </div>
-                    <button type="submit" class="btn btn-primary btn-full">Terminer l'inscription</button>
+                    <button type="submit" class="btn btn-primary btn-full" id="btn-submit">Terminer l'inscription</button>
                     <button type="button" class="btn btn-outline btn-full" id="btn-cancel" style="margin-top: 16px;">Annuler</button>
                     <div id="auth-error" class="auth-error hidden"></div>
                   </form>
@@ -72,7 +72,7 @@ export function renderAuth(app, onLogin) {
                   <div class="auth-logo">
                     <span class="logo-icon">🥗</span>
                     <h1>NutriApp</h1>
-                    <p class="auth-subtitle">Votre assistant nutritionnel sécurisé</p>
+                    <p class="auth-subtitle">Votre assistant nutritionnel sécurisé (SQL Database)</p>
                   </div>
                   
                   <div class="auth-tabs">
@@ -115,7 +115,7 @@ export function renderAuth(app, onLogin) {
                       </div>
                     ` : ''}
 
-                    <button type="submit" class="btn btn-primary btn-full">
+                    <button type="submit" class="btn btn-primary btn-full" id="btn-submit">
                       ${isLogin ? '🔑 Se connecter' : '✨ S\'inscrire'}
                     </button>
 
@@ -166,21 +166,28 @@ export function renderAuth(app, onLogin) {
             });
         }
 
-        document.getElementById('auth-form').addEventListener('submit', (e) => {
+        document.getElementById('auth-form').addEventListener('submit', async (e) => {
             e.preventDefault();
+            const btnSubmit = document.getElementById('btn-submit');
+            btnSubmit.disabled = true;
+            btnSubmit.innerHTML = 'Chargement...';
             
             if (requireTotpLogin) {
                 const totpCode = document.getElementById('totp').value.trim();
-                const result = onLogin(currentUsername, currentPassword, true, null, totpCode, null);
-                return; // callback already handles error showing
+                await onLogin(currentUsername, currentPassword, true, null, totpCode, null);
+                btnSubmit.disabled = false;
+                btnSubmit.innerHTML = 'Vérifier et se connecter';
+                return;
             } else if (!isLogin && currentTotpSecret) {
                 const totpCode = document.getElementById('totp').value.trim();
                 const isValid = window.otplib.authenticator.check(totpCode, currentTotpSecret);
                 if (isValid) {
-                    onLogin(currentUsername, currentPassword, false, currentRole, totpCode, currentTotpSecret);
+                    await onLogin(currentUsername, currentPassword, false, currentRole, totpCode, currentTotpSecret);
                 } else {
                     showAuthError("Le code d'activation est incorrect.");
                 }
+                btnSubmit.disabled = false;
+                btnSubmit.innerHTML = "Terminer l'inscription";
                 return;
             }
 
@@ -190,17 +197,19 @@ export function renderAuth(app, onLogin) {
             if (isLogin) {
                 currentUsername = username;
                 currentPassword = password;
-                const result = onLogin(username, password, true, null, null, null);
+                const result = await onLogin(username, password, true, null, null, null);
                 if (result && result.requireTotp) {
                     requireTotpLogin = true;
                     render();
+                } else {
+                    btnSubmit.disabled = false;
+                    btnSubmit.innerHTML = '🔑 Se connecter';
                 }
             } else {
                 currentUsername = username;
                 currentPassword = password;
                 currentRole = document.querySelector('input[name="role"]:checked')?.value || 'consumer';
                 
-                // Génération du secret TOTP pour l'inscription MFA
                 currentTotpSecret = window.otplib.authenticator.generateSecret();
                 qrCodeUrl = window.otplib.authenticator.keyuri(username, 'NutriApp', currentTotpSecret);
                 render();
@@ -216,6 +225,6 @@ export function showAuthError(message) {
     if (errorEl) {
         errorEl.textContent = message;
         errorEl.classList.remove('hidden');
-        setTimeout(() => errorEl.classList.add('hidden'), 5000);
+        setTimeout(() => { if (errorEl) errorEl.classList.add('hidden'); }, 5000);
     }
 }

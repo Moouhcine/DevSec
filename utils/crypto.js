@@ -35,3 +35,13 @@ export function decryptData(cipherText) {
         return null;
     }
 }
+
+/**
+ * Hache un mot de passe (simule le stockage sécurisé côté serveur)
+ * @param {string} password 
+ * @returns {string} Hash SHA-256
+ */
+export function hashPassword(password) {
+    if (!password) return '';
+    return CryptoJS.SHA256(password).toString();
+}

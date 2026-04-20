@@ -1,20 +1,10 @@
 import { encryptData, decryptData } from './crypto.js';
 import { checkWafLockout, recordFailedLogin, resetWafLockout } from './security.js';
+import { api } from './api.js';
 
 const KEYS = {
-    USERS: 'nutriapp_users',
-    CURRENT_USER: 'nutriapp_current_user',
-    PROFILES: 'nutriapp_profiles',
-    RECOMMENDATIONS: 'nutriapp_recommendations'
+    CURRENT_USER: 'nutriapp_current_user'
 };
-
-export function getUsers() {
-    return JSON.parse(localStorage.getItem(KEYS.USERS) || '[]');
-}
-
-export function saveUsers(users) {
-    localStorage.setItem(KEYS.USERS, JSON.stringify(users));
-}
 
 export function getCurrentUser() {
     return JSON.parse(sessionStorage.getItem(KEYS.CURRENT_USER) || 'null');
@@ -28,109 +18,80 @@ export function clearCurrentUser() {
     sessionStorage.removeItem(KEYS.CURRENT_USER);
 }
 
-export function getProfiles() {
-    return JSON.parse(localStorage.getItem(KEYS.PROFILES) || '{}');
-}
-
-export function saveProfile(userId, profile) {
+export async function saveProfile(userId, profile) {
     const currentUser = getCurrentUser();
     // Contrôle d'accès ABAC (Élévation de privilèges)
     if (currentUser && currentUser.role === 'consumer' && currentUser.id !== userId) {
-        console.error("ABAC: Action bloquée. Impossible de modifier le profil d'un autre utilisateur.");
-        return;
+        throw new Error("ABAC: Action bloquée. Impossible de modifier le profil d'un autre utilisateur.");
     }
 
-    const profiles = getProfiles();
-    // Chiffrement des données du profil avant sauvegarde
-    profiles[userId] = encryptData(profile);
-    localStorage.setItem(KEYS.PROFILES, JSON.stringify(profiles));
+    // Chiffrement des données du profil avant sauvegarde sur le serveur
+    const encryptedData = encryptData(profile);
+    return await api.saveProfile(userId, encryptedData);
 }
 
-export function getProfile(userId) {
+export async function getProfile(userId) {
     const currentUser = getCurrentUser();
-    // Contrôle d'accès ABAC (Élévation de privilèges)
+    // Contrôle d'accès ABAC
     if (currentUser && currentUser.role === 'consumer' && currentUser.id !== userId) {
-        console.error("ABAC: Accès refusé. Vous ne pouvez lire que votre propre profil.");
         return null;
     }
 
-    const profiles = getProfiles();
-    if (!profiles[userId]) return null;
+    const profilesData = await api.getProfile(userId);
+    if (!profilesData) return null;
     
-    // Déchiffrement à la volée (rétro-compatibilité s'il s'agit d'un objet non chiffré)
-    if (typeof profiles[userId] === 'string') {
-        return decryptData(profiles[userId]);
+    // Déchiffrement
+    if (typeof profilesData === 'string') {
+        return decryptData(profilesData);
     }
-    return profiles[userId];
+    return profilesData;
 }
 
-export function getRecommendations() {
-    return JSON.parse(localStorage.getItem(KEYS.RECOMMENDATIONS) || '[]');
+export async function getRecommendations() {
+    const recs = await api.getRecommendations();
+    // Parse allergens string back to array if needed (handled by API mostly)
+    return recs.map(r => ({
+        ...r,
+        dishAllergens: typeof r.dishAllergens === 'string' ? JSON.parse(r.dishAllergens) : r.dishAllergens
+    }));
 }
 
-export function saveRecommendations(recs) {
-    localStorage.setItem(KEYS.RECOMMENDATIONS, JSON.stringify(recs));
+export async function saveRecommendations(recs) {
+    return await api.saveRecommendations(recs);
 }
 
-export function addRecommendation(rec) {
-    const recs = getRecommendations();
-    recs.push(rec);
-    saveRecommendations(recs);
+export async function updateRecommendation(recId, updates) {
+    // updates contains status, nutritionistComment, etc.
+    return await api.updateRecommendation(recId, updates.status, updates.nutritionistComment, updates.nutritionistId);
 }
 
-export function updateRecommendation(recId, updates) {
-    const recs = getRecommendations();
-    const idx = recs.findIndex(r => r.id === recId);
-    if (idx !== -1) {
-        recs[idx] = { ...recs[idx], ...updates };
-        saveRecommendations(recs);
-    }
+export async function getRecommendationsForUser(userId) {
+    const all = await getRecommendations();
+    return all.filter(r => r.userId === userId);
 }
 
-export function getRecommendationsForUser(userId) {
-    return getRecommendations().filter(r => r.userId === userId);
+export async function registerUser(username, password, role, totpSecret) {
+    const result = await api.register(username, password, role, totpSecret);
+    return result;
 }
 
-export function getPendingRecommendations() {
-    return getRecommendations().filter(r => r.status === 'pending');
-}
-
-export function registerUser(username, password, role, totpSecret) {
-    const users = getUsers();
-    if (users.find(u => u.username === username)) {
-        return { success: false, error: 'Ce nom d\'utilisateur existe déjà' };
-    }
-    const user = {
-        id: Date.now().toString(),
-        username,
-        password,
-        role,
-        totpSecret,
-        createdAt: new Date().toISOString()
-    };
-    users.push(user);
-    saveUsers(users);
-    return { success: true, user };
-}
-
-export function loginUser(username, password, totpCode) {
+export async function loginUser(username, password, totpCode) {
     const wafCheck = checkWafLockout(username);
     if (wafCheck.locked) {
         return { success: false, error: `Compte bloqué (WAF). Réessayez dans ${wafCheck.remaining}s.` };
     }
 
-    const users = getUsers();
-    const user = users.find(u => u.username === username && u.password === password);
+    const result = await api.login(username, password);
     
-    if (user) {
+    if (result.success) {
+        const user = result.user;
         // Validation MFA TOTP
         if (user.totpSecret) {
             if (!totpCode) {
-                return { success: false, requireTotp: true }; // Demande le code à la vue
+                return { success: false, requireTotp: true };
             }
             
             try {
-                // Utilisation d'otplib injecté globablement via CDN
                 const isValid = window.otplib.authenticator.check(totpCode, user.totpSecret);
                 if (!isValid) {
                     recordFailedLogin(username);
@@ -147,7 +108,7 @@ export function loginUser(username, password, totpCode) {
     }
     
     recordFailedLogin(username);
-    return { success: false, error: 'Identifiants incorrects' };
+    return { success: false, error: result.error || 'Identifiants incorrects' };
 }
 
 export function logoutUser() {

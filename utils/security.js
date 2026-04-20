@@ -1,16 +1,12 @@
-// Mini WAF (Web Application Firewall) & Sanitisation & Audit Logging
+import { api } from './api.js';
 
 const KEYS = {
-    FAILED_LOGINS: 'nutriapp_waf_failed_logins',
-    AUDIT_LOGS: 'nutriapp_audit_logs'
+    FAILED_LOGINS: 'nutriapp_waf_failed_logins'
 };
 
 const MAX_FAILED_ATTEMPTS = 5;
-const LOCKOUT_DURATION_MS = 60 * 1000; // 1 minute pour l'exemple
+const LOCKOUT_DURATION_MS = 60 * 1000;
 
-/**
- * Sanitisation simple pour empêcher les injections XSS
- */
 export function sanitizeInput(input) {
     if (typeof input !== 'string') return input;
     const div = document.createElement('div');
@@ -18,9 +14,6 @@ export function sanitizeInput(input) {
     return div.innerHTML;
 }
 
-/**
- * Vérifie si l'utilisateur est bloqué par le WAF (Rate Limiting)
- */
 export function checkWafLockout(username) {
     const attemptsStr = localStorage.getItem(KEYS.FAILED_LOGINS) || '{}';
     const attempts = JSON.parse(attemptsStr);
@@ -31,7 +24,6 @@ export function checkWafLockout(username) {
             if (Date.now() - lastAttempt < LOCKOUT_DURATION_MS) {
                 return { locked: true, remaining: Math.ceil((LOCKOUT_DURATION_MS - (Date.now() - lastAttempt)) / 1000) };
             } else {
-                // Déverrouiller si le temps est écoulé
                 resetWafLockout(username);
             }
         }
@@ -39,9 +31,6 @@ export function checkWafLockout(username) {
     return { locked: false };
 }
 
-/**
- * Enregistre un échec de connexion (Rate Limiting)
- */
 export function recordFailedLogin(username) {
     const attemptsStr = localStorage.getItem(KEYS.FAILED_LOGINS) || '{}';
     const attempts = JSON.parse(attemptsStr);
@@ -58,9 +47,6 @@ export function recordFailedLogin(username) {
     return attempts[username].count >= MAX_FAILED_ATTEMPTS;
 }
 
-/**
- * Réinitialise le compteur d'échecs après un succès
- */
 export function resetWafLockout(username) {
     const attemptsStr = localStorage.getItem(KEYS.FAILED_LOGINS) || '{}';
     const attempts = JSON.parse(attemptsStr);
@@ -70,13 +56,7 @@ export function resetWafLockout(username) {
     }
 }
 
-/**
- * Audit Log : Enregistre une action non-répudiable
- */
-export function logAuditAction(userId, action, resourceId) {
-    const logsStr = localStorage.getItem(KEYS.AUDIT_LOGS) || '[]';
-    const logs = JSON.parse(logsStr);
-    
+export async function logAuditAction(userId, action, resourceId) {
     const entry = {
         timestamp: new Date().toISOString(),
         userId,
@@ -84,17 +64,23 @@ export function logAuditAction(userId, action, resourceId) {
         resourceId
     };
     
-    // Simple hash (pour simuler la non-répudiation)
-    const hashData = `${entry.timestamp}-${entry.userId}-${entry.action}-${entry.resourceId}-SECRET`;
-    let hash = 0;
-    for (let i = 0; i < hashData.length; i++) {
-        const char = hashData.charCodeAt(i);
-        hash = ((hash << 5) - hash) + char;
-        hash = hash & hash; // Convert to 32bit integer
-    }
+    const hashData = `${entry.timestamp}-${entry.userId}-${entry.action}-${entry.resourceId}-SECRET-PLATFORM-KEY`;
+    entry.hash = CryptoJS.SHA256(hashData).toString().slice(0, 16);
     
-    entry.hash = hash.toString(16);
-    
-    logs.push(entry);
-    localStorage.setItem(KEYS.AUDIT_LOGS, JSON.stringify(logs));
+    return await api.saveLog(entry);
+}
+
+export async function getAuditLogs() {
+    return await api.getLogs();
+}
+
+export async function getSecuritySystemState() {
+    const logs = await getAuditLogs();
+    return {
+        wafStatus: 'Active (Rate-Limited)',
+        encryptionType: 'AES-256-CBC',
+        mfaStandard: 'RFC 6238 (TOTP)',
+        abacPolicy: 'Enforced',
+        lastAudit: logs.length > 0 ? logs[0].timestamp : 'Aucun'
+    };
 }

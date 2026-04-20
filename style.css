@@ -1588,3 +1588,190 @@ textarea {
     flex: 1 1 100%;
   }
 }
+
+/* ======== Security Audit Component ======== */
+.security-audit-panel {
+  padding: var(--space-5);
+  background: #1a1614; /* Darker technical background */
+  color: #a5c291; /* Terminal green */
+  border: 1px solid #3c3836;
+  font-family: 'Courier New', Courier, monospace;
+}
+
+.security-audit-panel h3 {
+  color: #efb993;
+  margin-bottom: var(--space-4);
+  font-family: var(--font);
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+.security-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: var(--space-3);
+  margin-bottom: var(--space-5);
+}
+
+.security-stat {
+  padding: var(--space-3);
+  background: #282422;
+  border-radius: var(--radius-xs);
+  border-left: 2px solid #504945;
+}
+
+.security-stat-label {
+  font-size: 10px;
+  text-transform: uppercase;
+  color: #928374;
+}
+
+.security-stat-value {
+  font-size: var(--text-sm);
+  font-weight: 700;
+  color: #b8bb26; /* Success green */
+}
+
+.audit-log-container {
+  max-height: 200px;
+  overflow-y: auto;
+  background: #000000;
+  padding: var(--space-3);
+  border-radius: var(--radius-xs);
+  font-size: 11px;
+}
+
+.audit-log-entry {
+  margin-bottom: var(--space-1);
+  border-bottom: 1px solid #1d2021;
+  padding-bottom: 4px;
+}
+
+.log-time { color: #83a598; }
+.log-action { color: #fabd2f; font-weight: 700; }
+.log-user { color: #d3869b; }
+.log-hash { color: #928374; font-style: italic; }
+
+.tech-badge {
+  display: inline-flex;
+  padding: 2px 6px;
+  background: #3c3836;
+  border-radius: 4px;
+  font-size: 9px;
+  margin-left: 4px;
+  color: #ebdbb2;
+}
+
+/* Animations */
+@keyframes scanning {
+  0% { opacity: 0.4; }
+  50% { opacity: 1; }
+  100% { opacity: 0.4; }
+}
+
+.status-active {
+  animation: scanning 2s infinite;
+  color: #b8bb26;
+}
+
+.btn-ai {
+    background: linear-gradient(135deg, #6366f1 0%, #a855f7 100%);
+    color: white;
+    border: none;
+    box-shadow: 0 4px 15px rgba(168, 85, 247, 0.3);
+}
+
+.btn-ai:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 6px 20px rgba(168, 85, 247, 0.4);
+}
+
+.ai-badge {
+    background: rgba(168, 85, 247, 0.1);
+    color: #a855f7;
+    padding: 2px 8px;
+    border-radius: 4px;
+    font-size: 0.75rem;
+    font-weight: 600;
+    margin-left: 8px;
+    border: 1px solid rgba(168, 85, 247, 0.2);
+}
+.ai-reasoning-bubble {
+    background: linear-gradient(135deg, rgba(99, 102, 241, 0.05) 0%, rgba(168, 85, 247, 0.05) 100%);
+    border-left: 4px solid #a855f7;
+    padding: 1rem;
+    margin: 1rem 0;
+    border-radius: 0 12px 12px 0;
+    font-style: italic;
+    font-size: 0.9rem;
+    color: var(--text-secondary);
+}
+
+.bubble-header {
+    font-weight: 700;
+    font-size: 0.75rem;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    color: #a855f7;
+    margin-bottom: 0.5rem;
+}
+
+.empty-state-dashboard {
+    text-align: center;
+    padding: 4rem 2rem;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 1.5rem;
+}
+
+.ai-brain-animation {
+    font-size: 4rem;
+    animation: pulse-brain 2s infinite ease-in-out;
+}
+
+@keyframes pulse-brain {
+    0% { transform: scale(1); opacity: 0.8; filter: drop-shadow(0 0 0px #a855f7); }
+    50% { transform: scale(1.1); opacity: 1; filter: drop-shadow(0 0 20px #a855f7); }
+    100% { transform: scale(1); opacity: 0.8; filter: drop-shadow(0 0 0px #a855f7); }
+}
+
+.profile-summary-card {
+    padding: 2rem;
+    text-align: center;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 1rem;
+}
+
+.profile-avatar-circle {
+    width: 80px;
+    height: 80px;
+    background: var(--bg-card);
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 2.5rem;
+    box-shadow: var(--shadow-lg);
+    border: 2px solid var(--border-color);
+}
+
+.card-divider {
+    width: 100%;
+    border: none;
+    border-top: 1px solid var(--border-color);
+    margin: 1rem 0;
+}
+
+.symptom-tag {
+    background: rgba(239, 68, 68, 0.1);
+    color: #ef4444;
+    padding: 2px 8px;
+    border-radius: 99px;
+    font-size: 0.7rem;
+    margin: 2px;
+    display: inline-block;
+}

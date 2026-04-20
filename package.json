@@ -1,0 +1,12 @@
+{
+  "name": "devsec-nutriapp",
+  "version": "1.0.0",
+  "description": "NutriApp - Système de recommandation nutritionnelle sécurisé",
+  "main": "app.js",
+  "scripts": {
+    "start": "npx -y http-server ./"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC"
+}
