@@ -1,9 +1,27 @@
+const path = require('path');
+const fs = require('fs');
+
+// Diagnostic de chargement .env
+const envPath = path.join(__dirname, '.env');
+const envExists = fs.existsSync(envPath);
+
+if (global.systemLog) {
+    global.systemLog(`Chemin recherché pour .env : ${envPath}`);
+    global.systemLog(`Fichier .env physiquement présent : ${envExists ? 'OUI' : 'NON'}`, envExists ? 'success' : 'error');
+}
+
+require('dotenv').config({ path: envPath });
+
+if (global.systemLog) {
+    global.systemLog(`Statut OpenRouter : ${process.env.OPENROUTER_API_KEY ? 'CONFIGURÉ' : 'MANQUANT'}`, process.env.OPENROUTER_API_KEY ? 'success' : 'error');
+    global.systemLog(`Statut Gemini : ${process.env.GEMINI_API_KEY ? 'CONFIGURÉ' : 'MANQUANT'}`, process.env.GEMINI_API_KEY ? 'success' : 'error');
+}
+
 const express = require('express');
 const mysql = require('mysql2/promise');
 const cors = require('cors');
 const bcrypt = require('bcryptjs');
 const { GoogleGenerativeAI } = require('@google/generative-ai');
-require('dotenv').config();
 
 const app = express();
 app.use(cors());
@@ -56,12 +74,13 @@ async function initDB() {
                 dishCalories INT,
                 dishDescription TEXT,
                 dishAllergens TEXT,
-                status ENUM('pending', 'approved', 'rejected') DEFAULT 'pending',
+                status ENUM('pending', 'approved', 'rejected', 'accepted', 'rejected_user') DEFAULT 'pending',
                 nutritionistComment TEXT,
                 aiReasoning TEXT,
                 nutritionistId VARCHAR(50),
                 createdAt DATETIME,
                 validatedAt DATETIME,
+                finalizedAt DATETIME,
                 FOREIGN KEY (userId) REFERENCES users(id)
             )
         `);
@@ -78,6 +97,17 @@ async function initDB() {
         `);
 
         connection.release();
+        
+        // Migration silencieuse pour les colonnes manquantes
+        const [columns] = await pool.query('SHOW COLUMNS FROM recommendations');
+        const hasFinalizedAt = columns.some(c => c.Field === 'finalizedAt');
+        if (!hasFinalizedAt) {
+            await pool.query('ALTER TABLE recommendations ADD COLUMN finalizedAt DATETIME');
+        }
+        // Mise à jour de l'ENUM (MySQL/MariaDB)
+        await pool.query("ALTER TABLE recommendations MODIFY COLUMN status ENUM('pending', 'approved', 'rejected', 'accepted', 'rejected_user') DEFAULT 'pending'");
+
+        console.log('Database schema verified and updated');
     } catch (err) {
         console.error('Database connection failed:', err);
     }
@@ -177,10 +207,20 @@ app.post('/api/recommendations', async (req, res) => {
 app.put('/api/recommendations/:id', async (req, res) => {
     const { status, comment, nutritionistId } = req.body;
     try {
-        await pool.query(
-            'UPDATE recommendations SET status = ?, nutritionistComment = ?, nutritionistId = ?, validatedAt = NOW() WHERE id = ?',
-            [status, comment, nutritionistId, req.params.id]
-        );
+        let query = '';
+        let params = [];
+
+        if (status === 'accepted' || status === 'rejected_user') {
+            // Action du consommateur
+            query = 'UPDATE recommendations SET status = ?, finalizedAt = NOW() WHERE id = ?';
+            params = [status, req.params.id];
+        } else {
+            // Action du nutritionniste
+            query = 'UPDATE recommendations SET status = ?, nutritionistComment = ?, nutritionistId = ?, validatedAt = NOW() WHERE id = ?';
+            params = [status, comment, nutritionistId, req.params.id];
+        }
+
+        await pool.query(query, params);
         res.json({ success: true });
     } catch (err) {
         res.status(500).json({ error: 'Update rec error' });
@@ -222,9 +262,15 @@ app.post('/api/ai/generate', async (req, res) => {
     const openRouterKey = process.env.OPENROUTER_API_KEY;
     const geminiKey = process.env.GEMINI_API_KEY;
     
-    // 1. Priorité à OpenRouter si configuré (permet d'utiliser des modèles 100% gratuits)
+    if (global.systemLog) {
+        global.systemLog(`Demande de génération IA reçue pour l'utilisateur.`, 'info');
+        global.systemLog(`Utilisation clef OpenRouter : ${!!openRouterKey}`, openRouterKey ? 'success' : 'error');
+    }
+
+    // 1. Priorité à OpenRouter si configuré
     if (openRouterKey && openRouterKey !== 'YOUR_OPENROUTER_KEY_HERE') {
         try {
+            if (global.systemLog) global.systemLog(`Envoi de la requête à OpenRouter...`, 'info');
             const response = await fetch("https://openrouter.ai/api/v1/chat/completions", {
                 method: "POST",
                 headers: {
@@ -234,7 +280,7 @@ app.post('/api/ai/generate', async (req, res) => {
                     "X-Title": "NutriApp Secure"
                 },
                 body: JSON.stringify({
-                    "model": "google/gemma-4-31b-it:free", // Passage au nouveau modèle Gemma 4 31B (Gratuit)
+                    "model": "openai/gpt-oss-120b",
                     "messages": [
                         {
                             "role": "system",
@@ -249,11 +295,20 @@ app.post('/api/ai/generate', async (req, res) => {
                     ]
                 })
             });
+
+            if (global.systemLog) global.systemLog(`Réponse OpenRouter reçue (Status: ${response.status})`, response.ok ? 'success' : 'error');
+
+            if (!response.ok) {
+                const errorBody = await response.text();
+                if (global.systemLog) global.systemLog(`Détails erreur OpenRouter : ${errorBody}`, 'error');
+                throw new Error(`OpenRouter HTTP ${response.status}`);
+            }
+
             const data = await response.json();
             const content = data.choices[0].message.content;
             const jsonMatch = content.match(/\{[\s\S]*\}/);
             const jsonData = JSON.parse(jsonMatch ? jsonMatch[0] : content);
-            return res.json({ success: true, isMock: false, meals: jsonData.meals, provider: 'OpenRouter' });
+            return res.json({ success: true, isMock: false, meals: jsonData.meals, provider: 'GPT-OSS (OpenAI)' });
         } catch (err) {
             console.error('OpenRouter Error:', err);
         }

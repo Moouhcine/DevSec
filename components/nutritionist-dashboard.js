@@ -195,13 +195,27 @@ export async function renderNutritionistDashboard(app, user, onNavigate) {
                     </div>
 
                     <div class="detail-section decision-zone">
+                      ${selectedRec.status === 'accepted' || selectedRec.status === 'rejected_user' ? `
+                        <div class="final-status-banner" style="margin-bottom: 20px; padding: 12px; border-radius: 8px; background: ${selectedRec.status === 'accepted' ? '#ecfdf5' : '#fef2f2'}; border: 1px solid ${selectedRec.status === 'accepted' ? '#10b981' : '#ef4444'};">
+                            <h5 style="margin: 0; color: ${selectedRec.status === 'accepted' ? '#065f46' : '#991b1b'}; display: flex; align-items: center; gap: 8px;">
+                                ${selectedRec.status === 'accepted' ? '✅ Accepté par le patient' : '✕ Refusé par le patient'}
+                            </h5>
+                            <p style="margin: 4px 0 0; font-size: 11px; opacity: 0.8;">Action réalisée le ${new Date(selectedRec.finalizedAt).toLocaleDateString()}</p>
+                        </div>
+                      ` : ''}
                       <label for="nutri-comment">Commentaire Expert</label>
-                      <textarea id="nutri-comment" placeholder="Ajouter un commentaire...">${commentDrafts[selectedRec.id] || selectedRec.nutritionistComment || ''}</textarea>
+                      <textarea id="nutri-comment" placeholder="Ajouter un commentaire..." ${selectedRec.status === 'accepted' || selectedRec.status === 'rejected_user' ? 'disabled' : ''}>${commentDrafts[selectedRec.id] || selectedRec.nutritionistComment || ''}</textarea>
                       <p class="decision-error" id="decision-error-msg" style="display: none;"></p>
-                      <div class="decision-actions">
-                        <button class="btn btn-success" id="btn-approve">Approuver</button>
-                        <button class="btn btn-danger" id="btn-reject">Rejeter</button>
-                      </div>
+                      ${selectedRec.status === 'pending' ? `
+                        <div class="decision-actions">
+                          <button class="btn btn-success" id="btn-approve">Approuver</button>
+                          <button class="btn btn-danger" id="btn-reject">Rejeter</button>
+                        </div>
+                      ` : `
+                        <div style="font-size: 12px; opacity: 0.6; font-style: italic; margin-top: 10px;">
+                            Cette recommandation a déjà été traitée (Statut: ${selectedRec.status}).
+                        </div>
+                      `}
                     </div>
                   </div>
                 `

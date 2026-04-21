@@ -124,6 +124,7 @@ export async function renderConsumerDashboard(app, user, onNavigate) {
                                 <button class="status-filter ${filterStatus === 'all' ? 'active' : ''}" data-status="all">Toutes</button>
                                 <button class="status-filter ${filterStatus === 'pending' ? 'active' : ''}" data-status="pending">Attente</button>
                                 <button class="status-filter ${filterStatus === 'approved' ? 'active' : ''}" data-status="approved">Validées</button>
+                                <!-- <button class="status-filter ${filterStatus === 'history' ? 'active' : ''}" data-status="history">Historique</button> -->
                             </div>
                         </div>
 
@@ -136,7 +137,7 @@ export async function renderConsumerDashboard(app, user, onNavigate) {
                                         <div style="display: flex; align-items: center; gap: 12px;">
                                             <span style="font-size: 24px;">${rec.isAI ? '🤖' : '🥗'}</span>
                                             <div>
-                                                <h4 style="margin: 0;">${rec.dishName}</h4>
+                                                <h4 style="margin: 0;">${rec.dishName} ${rec.isAI ? `<span class="ai-badge-v2">Moteur: ${rec.provider || 'GPT-OSS'}</span>` : ''}</h4>
                                                 <p style="margin: 2px 0 0; color: var(--text-muted); font-size: 12px;">${rec.dishCategory}</p>
                                             </div>
                                         </div>
@@ -144,18 +145,32 @@ export async function renderConsumerDashboard(app, user, onNavigate) {
                                     </div>
                                     <div class="review-row-meta" style="display: flex; justify-content: space-between; align-items: center; margin-top: 12px;">
                                         <div class="rec-status-area">
-                                            <span class="mini-pill status-pill status-${rec.status}">${rec.status === 'pending' ? 'En attente' : rec.status === 'approved' ? 'Validé' : 'Rejeté'}</span>
+                                            <span class="mini-pill status-pill status-${rec.status}">
+                                                ${rec.status === 'pending' ? '⌛ En attente Nutri' : 
+                                                  rec.status === 'approved' ? '✅ Validé par Nutri' : 
+                                                  rec.status === 'accepted' ? '📋 Consommé' : '✕ Refusé'}
+                                            </span>
+                                            ${rec.finalizedAt ? `
+                                                <span style="font-size: 10px; color: var(--text-muted); margin-left: 8px;">
+                                                    le ${new Date(rec.finalizedAt).toLocaleDateString()}
+                                                </span>
+                                            ` : ''}
                                         </div>
                                         <div class="rec-actions-v2">
-                                            ${rec.status === 'pending' ? `
-                                                <button class="btn-icon approve" data-id="${rec.id}" title="Approuver">✓</button>
-                                                <button class="btn-icon reject" data-id="${rec.id}" title="Rejeter">✕</button>
+                                            ${rec.status === 'approved' ? `
+                                                <button class="btn-icon approve" data-id="${rec.id}" title="Accepter ce plat">✓</button>
+                                                <button class="btn-icon reject" data-id="${rec.id}" title="Refuser ce plat">✕</button>
                                             ` : ''}
                                         </div>
                                     </div>
+                                    ${rec.nutritionistComment ? `
+                                        <div class="nutritionist-note" style="margin-top: 12px; padding: 8px 12px; background: #f0fdf4; border-radius: 8px; border-left: 3px solid #22c55e; font-size: 13px;">
+                                            <strong style="color: #166534;">Note du Nutritionniste :</strong> ${rec.nutritionistComment}
+                                        </div>
+                                    ` : ''}
                                     ${rec.aiReasoning ? `
-                                        <div class="ai-reasoning-bubble" style="margin-top: 12px; font-size: 12px; font-style: italic; opacity: 0.8;">
-                                            "${rec.aiReasoning.slice(0, 80)}..."
+                                        <div class="ai-reasoning-bubble" style="margin-top: 12px; font-size: 11px; font-style: italic; opacity: 0.9; line-height: 1.4; border-left: 2px solid var(--accent-primary); padding-left: 10px;">
+                                            <strong>Analyse NutriAI :</strong> ${rec.aiReasoning}
                                         </div>
                                     ` : ''}
                                 </article>
@@ -244,14 +259,14 @@ export async function renderConsumerDashboard(app, user, onNavigate) {
 
         document.querySelectorAll('.btn-icon.approve').forEach(btn => {
             btn.addEventListener('click', async () => {
-                await updateRecommendation(btn.dataset.id, { status: 'approved' });
+                await updateRecommendation(btn.dataset.id, { status: 'accepted' });
                 await render();
             });
         });
 
         document.querySelectorAll('.btn-icon.reject').forEach(btn => {
             btn.addEventListener('click', async () => {
-                await updateRecommendation(btn.dataset.id, { status: 'rejected' });
+                await updateRecommendation(btn.dataset.id, { status: 'rejected_user' });
                 await render();
             });
         });

@@ -30,5 +30,7 @@ coverage/
 
 # Build
 dist/
+dist_v*/
+dist_prod/
 build/
 .cache/

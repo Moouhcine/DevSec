@@ -9,6 +9,19 @@
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="style.css">
+    <script>
+        // Diagnostic System Bridge
+        if (window.electronAPI && window.electronAPI.onBackendLog) {
+            window.electronAPI.onBackendLog((data) => {
+                const styles = {
+                    info: 'color: #3b82f6; font-weight: bold',
+                    success: 'color: #10b981; font-weight: bold',
+                    error: 'color: #ef4444; font-weight: bold; background: #fee2e2'
+                };
+                console.log(`%c[BACKEND-${data.type.toUpperCase()}]`, styles[data.type] || '', data.message);
+            });
+        }
+    </script>
 </head>
 <body>
   <div id="app" class="app"></div>
