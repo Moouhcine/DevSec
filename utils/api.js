@@ -81,6 +81,10 @@ export const api = {
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ profile })
         });
-        return res.json();
+        const data = await res.json();
+        if (!res.ok || data.success === false) {
+            throw new Error(data.error || 'AI generation failed');
+        }
+        return data;
     }
 };

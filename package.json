@@ -34,11 +34,18 @@
       "!dist/*",
       "!Caches/*"
     ],
+    "extraResources": [
+      {
+        "from": "backend/.env",
+        "to": "backend/.env"
+      }
+    ],
     "directories": {
       "output": "dist_prod"
     },
     "win": {
-      "target": "nsis"
+      "target": "nsis",
+      "signAndEditExecutable": false
     },
     "nsis": {
       "oneClick": false,

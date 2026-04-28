@@ -246,8 +246,14 @@ export async function renderConsumerDashboard(app, user, onNavigate) {
             const btn = document.getElementById('btn-generate-ai');
             btn.disabled = true;
             btn.innerText = 'Scanning...';
-            await generateAIRecommendations(user.id);
-            await render();
+            try {
+                await generateAIRecommendations(user.id);
+                await render();
+            } catch (err) {
+                alert(err.message);
+                btn.disabled = false;
+                btn.innerText = '🚀 Encore faim !';
+            }
         });
 
         document.querySelectorAll('.status-filter').forEach(btn => {

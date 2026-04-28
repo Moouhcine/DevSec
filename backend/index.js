@@ -1,20 +1,27 @@
-const path = require('path');
+﻿const path = require('path');
 const fs = require('fs');
 
 // Diagnostic de chargement .env
-const envPath = path.join(__dirname, '.env');
+const envCandidates = [
+    path.join(__dirname, '.env'),
+    path.join(process.resourcesPath || '', 'backend', '.env'),
+    path.join(process.resourcesPath || '', '.env'),
+    path.join(process.cwd(), 'backend', '.env'),
+    path.join(process.cwd(), '.env')
+].filter(Boolean);
+const envPath = envCandidates.find(candidate => fs.existsSync(candidate)) || envCandidates[0];
 const envExists = fs.existsSync(envPath);
 
 if (global.systemLog) {
-    global.systemLog(`Chemin recherché pour .env : ${envPath}`);
-    global.systemLog(`Fichier .env physiquement présent : ${envExists ? 'OUI' : 'NON'}`, envExists ? 'success' : 'error');
+    global.systemLog(`Chemin recherchÃ© pour .env : ${envPath}`);
+    global.systemLog(`Fichier .env physiquement prÃ©sent : ${envExists ? 'OUI' : 'NON'}`, envExists ? 'success' : 'error');
 }
 
 require('dotenv').config({ path: envPath });
 
 if (global.systemLog) {
-    global.systemLog(`Statut OpenRouter : ${process.env.OPENROUTER_API_KEY ? 'CONFIGURÉ' : 'MANQUANT'}`, process.env.OPENROUTER_API_KEY ? 'success' : 'error');
-    global.systemLog(`Statut Gemini : ${process.env.GEMINI_API_KEY ? 'CONFIGURÉ' : 'MANQUANT'}`, process.env.GEMINI_API_KEY ? 'success' : 'error');
+    global.systemLog(`Statut OpenRouter : ${process.env.OPENROUTER_API_KEY ? 'CONFIGURÃ‰' : 'MANQUANT'}`, process.env.OPENROUTER_API_KEY ? 'success' : 'error');
+    global.systemLog(`Statut Gemini : ${process.env.GEMINI_API_KEY ? 'CONFIGURÃ‰' : 'MANQUANT'}`, process.env.GEMINI_API_KEY ? 'success' : 'error');
 }
 
 const express = require('express');
@@ -104,7 +111,7 @@ async function initDB() {
         if (!hasFinalizedAt) {
             await pool.query('ALTER TABLE recommendations ADD COLUMN finalizedAt DATETIME');
         }
-        // Mise à jour de l'ENUM (MySQL/MariaDB)
+        // Mise Ã  jour de l'ENUM (MySQL/MariaDB)
         await pool.query("ALTER TABLE recommendations MODIFY COLUMN status ENUM('pending', 'approved', 'rejected', 'accepted', 'rejected_user') DEFAULT 'pending'");
 
         console.log('Database schema verified and updated');
@@ -260,17 +267,17 @@ const genAI = process.env.GEMINI_API_KEY && process.env.GEMINI_API_KEY !== 'YOUR
 app.post('/api/ai/generate', async (req, res) => {
     const { profile } = req.body;
     const openRouterKey = process.env.OPENROUTER_API_KEY;
-    const geminiKey = process.env.GEMINI_API_KEY;
+    const aiErrors = [];
     
     if (global.systemLog) {
-        global.systemLog(`Demande de génération IA reçue pour l'utilisateur.`, 'info');
+        global.systemLog(`Demande de gÃ©nÃ©ration IA reÃ§ue pour l'utilisateur.`, 'info');
         global.systemLog(`Utilisation clef OpenRouter : ${!!openRouterKey}`, openRouterKey ? 'success' : 'error');
     }
 
-    // 1. Priorité à OpenRouter si configuré
+    // 1. PrioritÃ© Ã  OpenRouter si configurÃ©
     if (openRouterKey && openRouterKey !== 'YOUR_OPENROUTER_KEY_HERE') {
         try {
-            if (global.systemLog) global.systemLog(`Envoi de la requête à OpenRouter...`, 'info');
+            if (global.systemLog) global.systemLog(`Envoi de la requÃªte Ã  OpenRouter...`, 'info');
             const response = await fetch("https://openrouter.ai/api/v1/chat/completions", {
                 method: "POST",
                 headers: {
@@ -280,13 +287,13 @@ app.post('/api/ai/generate', async (req, res) => {
                     "X-Title": "NutriApp Secure"
                 },
                 body: JSON.stringify({
-                    "model": "meta-llama/llama-3.1-8b-instruct:free",
+                    "model": "openai/gpt-oss-20b:free",
                     "messages": [
                         {
                             "role": "system",
-                            "content": `Tu es NutriAI. Basé sur TOUT ce profil : ${JSON.stringify(profile)}, génère 3 repas adaptés. 
-                            IMPORTANT : Exploite les champs Profession, Ville, Symptômes, IMC dans ton explication.
-                            Réponds UNIQUEMENT en JSON : { "meals": [ { "name": "...", "category": "...", "calories": 0, "description": "...", "allergens": [], "aiReasoning": "Pourquoi pour ce profil spécifique (Mentionne métier/symptômes) ?" } ] }`
+                            "content": `Tu es NutriAI. BasÃ© sur TOUT ce profil : ${JSON.stringify(profile)}, gÃ©nÃ¨re 3 repas adaptÃ©s. 
+                            IMPORTANT : Exploite les champs Profession, Ville, SymptÃ´mes, IMC dans ton explication.
+                            RÃ©ponds UNIQUEMENT en JSON : { "meals": [ { "name": "...", "category": "...", "calories": 0, "description": "...", "allergens": [], "aiReasoning": "Pourquoi pour ce profil spÃ©cifique (Mentionne mÃ©tier/symptÃ´mes) ?" } ] }`
                         },
                         {
                             "role": "user",
@@ -296,11 +303,11 @@ app.post('/api/ai/generate', async (req, res) => {
                 })
             });
 
-            if (global.systemLog) global.systemLog(`Réponse OpenRouter reçue (Status: ${response.status})`, response.ok ? 'success' : 'error');
+            if (global.systemLog) global.systemLog(`RÃ©ponse OpenRouter reÃ§ue (Status: ${response.status})`, response.ok ? 'success' : 'error');
 
             if (!response.ok) {
                 const errorBody = await response.text();
-                if (global.systemLog) global.systemLog(`Détails erreur OpenRouter : ${errorBody}`, 'error');
+                if (global.systemLog) global.systemLog(`DÃ©tails erreur OpenRouter : ${errorBody}`, 'error');
                 throw new Error(`OpenRouter HTTP ${response.status}`);
             }
 
@@ -311,36 +318,39 @@ app.post('/api/ai/generate', async (req, res) => {
             return res.json({ success: true, isMock: false, meals: jsonData.meals, provider: 'GPT-OSS (OpenAI)' });
         } catch (err) {
             console.error('OpenRouter Error:', err);
+            aiErrors.push(`OpenRouter: ${err.message}`);
+            if (global.systemLog) global.systemLog(`Erreur OpenRouter : ${err.message}`, 'error');
         }
     }
 
-    // 2. Repli vers Gemini Direct si configuré
+    // 2. Repli vers Gemini Direct si configurÃ©
     if (genAI) {
         try {
             const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
-            const prompt = `Tu es NutriAI. Basé sur : ${JSON.stringify(profile)}, génère 3 plats adaptés. 
-            Réponds UNIQUEMENT en JSON : { "meals": [ { "name": "...", "category": "...", "calories": 0, "description": "...", "allergens": [], "aiReasoning": "Analyse personnalisée (métier/symptômes/IMC)" } ] }`;
+            const prompt = `Tu es NutriAI. BasÃ© sur : ${JSON.stringify(profile)}, gÃ©nÃ¨re 3 plats adaptÃ©s. 
+            RÃ©ponds UNIQUEMENT en JSON : { "meals": [ { "name": "...", "category": "...", "calories": 0, "description": "...", "allergens": [], "aiReasoning": "Analyse personnalisÃ©e (mÃ©tier/symptÃ´mes/IMC)" } ] }`;
             const result = await model.generateContent(prompt);
             const jsonData = JSON.parse(result.response.text().match(/\{[\s\S]*\}/)[0]);
             return res.json({ success: true, isMock: false, meals: jsonData.meals, provider: 'Gemini' });
         } catch (err) {
             console.error('Gemini Error:', err);
+            aiErrors.push(`Gemini: ${err.message}`);
+            if (global.systemLog) global.systemLog(`Erreur Gemini : ${err.message}`, 'error');
         }
     }
 
-    // 3. Fallback Mock de secours
-    res.json({
-        success: true,
-        isMock: true,
-        meals: [
-            {
-                name: "Salade de l'Agent intelligent (Mock)",
-                category: "Légumes",
-                calories: 250,
-                description: "Veuillez configurer une clef OpenRouter ou Gemini dans le fichier backend/.env pour activer l'IA réelle.",
-                allergens: []
-            }
-        ]
+    // 3. No silent mock: surface configuration/provider failures.
+    const hasConfiguredProvider =
+        (openRouterKey && openRouterKey !== 'YOUR_OPENROUTER_KEY_HERE') ||
+        (process.env.GEMINI_API_KEY && process.env.GEMINI_API_KEY !== 'YOUR_FREE_KEY_HERE');
+
+    res.status(hasConfiguredProvider ? 502 : 400).json({
+        success: false,
+        isMock: false,
+        error: hasConfiguredProvider
+            ? `La generation IA a echoue. ${aiErrors.join(' | ')}`
+            : "Aucune cle IA configuree. Ajoutez OPENROUTER_API_KEY ou GEMINI_API_KEY dans backend/.env.",
+        providerErrors: aiErrors
     });
 });
 

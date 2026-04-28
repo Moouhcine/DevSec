@@ -2879,3 +2879,493 @@ body {
     margin-left: 8px;
     border: 1px solid rgba(99, 102, 241, 0.2);
 }
+
+/* ==================================================
+   Distilled Aesthetics Pass - Clinical Atelier UI
+   ================================================== */
+
+:root {
+  --bg-page: #f4efe3;
+  --bg-primary: #f4efe3;
+  --bg-secondary: #e4ddce;
+  --bg-card: rgba(255, 252, 242, 0.88);
+  --bg-inner: #fffaf0;
+  --bg-glass: rgba(255, 250, 240, 0.78);
+  --border-main: #211d17;
+  --glass-border: rgba(33, 29, 23, 0.18);
+  --text-main: #211d17;
+  --text-primary: #211d17;
+  --text-secondary: #5c5548;
+  --text-muted: #857c6c;
+  --accent-primary: #e24b2d;
+  --accent-hover: #c93b21;
+  --accent-secondary: #c2ff3d;
+  --accent-success: #277c55;
+  --accent-info: #1768ac;
+  --accent-danger: #b9231f;
+  --success: #277c55;
+  --warning: #9c650c;
+  --danger: #b9231f;
+  --info: #1768ac;
+  --accent-primary-glow: rgba(226, 75, 45, 0.25);
+  --font: "IBM Plex Mono", monospace;
+  --display-font: "Fraunces", serif;
+  --radius-lg: 8px;
+  --radius-md: 6px;
+  --radius-sm: 4px;
+  --radius-xs: 3px;
+  --transition: all 0.18s cubic-bezier(0.2, 0.8, 0.2, 1);
+}
+
+body {
+  font-family: var(--font);
+  font-weight: 500;
+  color: var(--text-primary);
+  background:
+    radial-gradient(circle at 12% 14%, rgba(194, 255, 61, 0.32) 0 9rem, transparent 9.1rem),
+    linear-gradient(90deg, rgba(33, 29, 23, 0.045) 1px, transparent 1px),
+    linear-gradient(0deg, rgba(33, 29, 23, 0.04) 1px, transparent 1px),
+    linear-gradient(135deg, #fffaf0 0%, #efe6d5 42%, #f7f2e6 100%);
+  background-size: auto, 44px 44px, 44px 44px, auto;
+}
+
+body::before {
+  content: "";
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  z-index: 0;
+  background:
+    repeating-linear-gradient(115deg, rgba(33, 29, 23, 0.035) 0 1px, transparent 1px 12px),
+    linear-gradient(180deg, rgba(226, 75, 45, 0.08), transparent 36%);
+  mix-blend-mode: multiply;
+}
+
+h1,
+h2,
+h3,
+.auth-logo h1,
+.dash-header h1,
+.dashboard-welcome h2,
+.section-toolbar h3,
+.profile-header h2,
+.kpi-value,
+.stat-value {
+  font-family: var(--display-font);
+  font-variation-settings: "SOFT" 40, "WONK" 1;
+  letter-spacing: 0;
+}
+
+.glass,
+.modular-pane,
+.auth-card,
+.form-section,
+.review-header,
+.review-queue,
+.review-detail-card,
+.profile-sidebar,
+.profile-insights,
+.recommendations-v2,
+.kpi-card-v2,
+.profile-card-v2,
+.rec-item-v2,
+.review-row {
+  background: var(--bg-card) !important;
+  border: 1px solid var(--border-main) !important;
+  border-radius: var(--radius-lg) !important;
+  box-shadow: 8px 8px 0 rgba(33, 29, 23, 0.92) !important;
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+}
+
+.auth-card,
+.dashboard-v2,
+.profile-manager,
+.nutrition-dashboard {
+  animation: clinicReveal 0.58s cubic-bezier(0.2, 0.8, 0.2, 1) both;
+}
+
+.dashboard-v2,
+.dashboard-container,
+.profile-manager {
+  position: relative;
+  z-index: 1;
+}
+
+.dash-header,
+.review-header {
+  border-bottom: 3px solid var(--text-primary);
+  padding-bottom: 18px;
+}
+
+.dash-header h1,
+.review-title h2 {
+  font-size: clamp(32px, 4vw, 58px);
+  line-height: 0.92;
+}
+
+.dash-welcome p,
+.review-title p,
+.auth-subtitle {
+  color: var(--text-secondary);
+  font-size: 13px;
+}
+
+.auth-container {
+  align-items: stretch;
+  min-height: 100vh;
+}
+
+.auth-card {
+  align-self: center;
+  max-width: 520px;
+  position: relative;
+  overflow: hidden;
+}
+
+.auth-card::before {
+  content: "NUTRI / AES-256";
+  position: absolute;
+  top: 14px;
+  right: -42px;
+  width: 190px;
+  padding: 6px 0;
+  color: #211d17;
+  background: var(--accent-secondary);
+  border: 1px solid #211d17;
+  font: 700 10px/1 var(--font);
+  text-align: center;
+  transform: rotate(18deg);
+}
+
+.logo-icon,
+.section-icon,
+.profile-img-v2,
+.stat-icon {
+  filter: saturate(1.4) contrast(1.05);
+}
+
+.auth-logo h1 {
+  color: var(--text-primary);
+  font-size: 46px;
+  line-height: 0.95;
+}
+
+.auth-tabs,
+.filter-tabs,
+.status-filter-row {
+  background: #211d17 !important;
+  border: 1px solid #211d17;
+  border-radius: var(--radius-sm);
+  padding: 4px;
+}
+
+.auth-tab,
+.filter-tab,
+.status-filter {
+  border-radius: var(--radius-xs) !important;
+  color: #fffaf0;
+  letter-spacing: 0;
+}
+
+.auth-tab.active,
+.filter-tab.active,
+.status-filter.active {
+  background: var(--accent-secondary) !important;
+  color: #211d17 !important;
+  border: 0 !important;
+}
+
+.btn,
+.btn-icon,
+input[type='text'],
+input[type='password'],
+input[type='number'],
+input[type='email'],
+select,
+textarea,
+.mini-tag,
+.mini-pill,
+.kcal-pill,
+.vault-badge,
+.review-chip,
+.tag {
+  border-radius: var(--radius-sm) !important;
+  font-family: var(--font) !important;
+  letter-spacing: 0;
+}
+
+.btn {
+  border: 1px solid #211d17 !important;
+  box-shadow: 3px 3px 0 #211d17;
+  text-transform: uppercase;
+  font-size: 12px;
+}
+
+.btn:hover {
+  transform: translate(-2px, -2px);
+  box-shadow: 5px 5px 0 #211d17;
+}
+
+.btn-primary,
+.btn-gel {
+  background: var(--accent-primary) !important;
+  color: #fffaf0 !important;
+}
+
+.btn-outline {
+  background: #fffaf0 !important;
+  color: #211d17 !important;
+}
+
+.btn-success {
+  background: var(--accent-success) !important;
+}
+
+.btn-danger {
+  background: var(--accent-danger) !important;
+}
+
+input[type='text'],
+input[type='password'],
+input[type='number'],
+input[type='email'],
+select,
+textarea {
+  background: #fffaf0;
+  border: 1px solid #211d17;
+  box-shadow: inset 2px 2px 0 rgba(33, 29, 23, 0.08);
+}
+
+input:focus,
+select:focus,
+textarea:focus {
+  border-color: #211d17;
+  box-shadow: 0 0 0 4px rgba(194, 255, 61, 0.55), inset 2px 2px 0 rgba(33, 29, 23, 0.08);
+}
+
+.dashboard-v2 {
+  gap: 28px;
+  max-width: 1500px;
+}
+
+.dash-kpis {
+  counter-reset: kpi;
+}
+
+.kpi-card-v2 {
+  position: relative;
+  overflow: hidden;
+  min-height: 130px;
+}
+
+.kpi-card-v2::before {
+  counter-increment: kpi;
+  content: "0" counter(kpi);
+  position: absolute;
+  right: 14px;
+  top: 10px;
+  color: rgba(33, 29, 23, 0.18);
+  font: 800 44px/1 var(--display-font);
+}
+
+.kpi-value {
+  color: var(--text-primary) !important;
+  font-size: clamp(42px, 5vw, 70px);
+}
+
+.kpi-label,
+.form-group label,
+.stat-label {
+  color: var(--text-primary);
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+}
+
+.recommendations-v2,
+.review-queue {
+  background:
+    linear-gradient(180deg, rgba(194, 255, 61, 0.12), transparent 140px),
+    var(--bg-card) !important;
+}
+
+.rec-item-v2,
+.review-row {
+  box-shadow: 4px 4px 0 rgba(33, 29, 23, 0.85) !important;
+  transition: transform 0.18s ease, box-shadow 0.18s ease, background 0.18s ease;
+}
+
+.rec-item-v2:hover,
+.review-row:hover,
+.review-row.selected {
+  background: #fff4d8 !important;
+  transform: translate(-2px, -2px);
+  box-shadow: 7px 7px 0 rgba(33, 29, 23, 0.92) !important;
+}
+
+.rec-info h4,
+.review-row h4 {
+  font-family: var(--display-font);
+  font-size: 22px !important;
+  line-height: 1.05;
+}
+
+.kcal-pill,
+.mini-pill,
+.mini-tag,
+.review-chip,
+.ai-badge-v2,
+.tech-badge {
+  border: 1px solid #211d17 !important;
+  background: #fffaf0 !important;
+  color: #211d17 !important;
+  box-shadow: 2px 2px 0 rgba(33, 29, 23, 0.8);
+}
+
+.status-approved,
+.chip-approved,
+.tag-green {
+  background: #dff6d7 !important;
+}
+
+.status-pending,
+.chip-pending,
+.tag-yellow,
+.tag-orange {
+  background: #fff0b8 !important;
+}
+
+.status-rejected,
+.chip-rejected,
+.tag-red {
+  background: #ffd8cf !important;
+}
+
+.profile-card-v2,
+.profile-sidebar {
+  background:
+    linear-gradient(135deg, rgba(226, 75, 45, 0.16), transparent 42%),
+    var(--bg-card) !important;
+}
+
+.profile-img-v2,
+.role-icon {
+  background: var(--accent-secondary) !important;
+  border: 1px solid #211d17;
+  box-shadow: 4px 4px 0 #211d17;
+}
+
+.security-audit-panel,
+.security-secondary-card,
+.security-info-box {
+  background: #171612 !important;
+  color: #f8f0dd !important;
+  border-color: #c2ff3d !important;
+  box-shadow: 8px 8px 0 #c2ff3d !important;
+}
+
+.security-audit-panel h3,
+.security-secondary-card h3,
+.security-info-box .title {
+  color: #c2ff3d !important;
+}
+
+.audit-log-entry,
+.security-stat-value {
+  font-family: var(--font) !important;
+}
+
+.chip,
+.checkbox-label,
+.role-card,
+.sidebar-item {
+  border-radius: var(--radius-sm) !important;
+  transition: var(--transition);
+}
+
+.chip.selected,
+.role-option input:checked + .role-card,
+.sidebar-item.active {
+  background: var(--accent-secondary) !important;
+  color: #211d17 !important;
+  border-color: #211d17 !important;
+  box-shadow: 3px 3px 0 #211d17 !important;
+}
+
+.sticky-profile-footer {
+  background: rgba(244, 239, 227, 0.88);
+  border-top: 1px solid #211d17;
+}
+
+.auth-card > *,
+.dashboard-v2 > *,
+.profile-manager > *,
+.review-layout > * {
+  animation: clinicStep 0.5s cubic-bezier(0.2, 0.8, 0.2, 1) both;
+}
+
+.auth-card > *:nth-child(2),
+.dashboard-v2 > *:nth-child(2),
+.profile-manager > *:nth-child(2),
+.review-layout > *:nth-child(2) {
+  animation-delay: 0.07s;
+}
+
+.auth-card > *:nth-child(3),
+.dashboard-v2 > *:nth-child(3),
+.profile-manager > *:nth-child(3) {
+  animation-delay: 0.14s;
+}
+
+@keyframes clinicReveal {
+  from {
+    opacity: 0;
+    transform: translateY(18px) scale(0.985);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+@keyframes clinicStep {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@media (max-width: 768px) {
+  .dashboard-v2,
+  .dashboard-container,
+  .profile-manager {
+    padding: 18px;
+  }
+
+  .dash-kpis {
+    grid-template-columns: 1fr;
+  }
+
+  .dash-header {
+    align-items: flex-start;
+    gap: 16px;
+  }
+
+  .auth-logo h1 {
+    font-size: 36px;
+  }
+
+  .glass,
+  .modular-pane,
+  .auth-card,
+  .form-section,
+  .review-row,
+  .review-detail-card {
+    box-shadow: 5px 5px 0 rgba(33, 29, 23, 0.92) !important;
+  }
+}
