@@ -280,7 +280,7 @@ app.post('/api/ai/generate', async (req, res) => {
                     "X-Title": "NutriApp Secure"
                 },
                 body: JSON.stringify({
-                    "model": "openai/gpt-oss-120b",
+                    "model": "meta-llama/llama-3.1-8b-instruct:free",
                     "messages": [
                         {
                             "role": "system",
